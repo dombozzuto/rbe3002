@@ -1,0 +1,2 @@
+
+-DCATKIN_DEVEL_PREFIX=/home/dombozzuto/rbe3002/devel -DCMAKE_INSTALL_PREFIX=/home/dombozzuto/rbe3002/install -G Unix Makefiles
