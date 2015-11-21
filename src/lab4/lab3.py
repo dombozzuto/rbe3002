@@ -255,6 +255,7 @@ class GridMap:
 
             #expand each neighbor
             for neighbor in validNeighbors:
+                continueFlag = False
                 #if the neighbor hasn't been expanded yet
                 if(not self.isMyPointInClosedSet(neighbor)):
                     # manhattan distance from start to currentCell
@@ -265,12 +266,15 @@ class GridMap:
                     #add the neighbor to openset and update scores
                     if(not self.isMyPointInOpenSet(neighbor)):
                         self.openSet.append(neighbor)
+                    #only update if this is a better path to the node
+                    elif (tentativeGScore >= self.map[neighbor.point.y][neighbor.point.x].gScore):
+                        continueFlag = True
+                    
+                    if(not continueFlag):
                         self.map[neighbor.point.y][neighbor.point.x].cameFrom = currentCell
                         self.updateGScore(neighbor.point.x, neighbor.point.y, tentativeGScore)
                         self.calculateFScore(neighbor.point.x, neighbor.point.y)
-                    #only update if this is a better path to the node
-                    elif (tentativeGScore >= self.map[neighbor.point.y][neighbor.point.x].gScore):
-                        continue
+
 
     
 
