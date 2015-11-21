@@ -40,15 +40,15 @@ theta = 0;
 
 
 
-def realWorldMap(data):
-# map listener
-    global mapData, grid
-    global width
-    global height
-    grid = data
-    mapData = data.data
-    width = data.info.width
-    height = data.info.height
+# def realWorldMap(data):
+# # map listener
+#     global mapData, grid
+#     global width
+#     global height
+#     grid = data
+#     mapData = data.data
+#     width = data.info.width
+#     height = data.info.height
 
 def readGoal(msg):
     px = msg.pose.position.x
@@ -653,11 +653,11 @@ def navToPosePoint(goal_x,goal_y):
     global xPos
     global yPos
     global theta
-    print "goals x %f" %(goal_x) + "goals y %f" %(goal_y) + "theta %f" %(theta)
+    #print "goals x %f" %(goal_x) + "goals y %f" %(goal_y) + "theta %f" %(theta)
     init_dist_x = xPos
     init_dist_y = yPos
     init_theta = theta
-    print "init x %f" %(init_dist_x) + "init y %f" %(init_dist_y) + "init theta %f" %(init_theta)
+    #print "init x %f" %(init_dist_x) + "init y %f" %(init_dist_y) + "init theta %f" %(init_theta)
     rel_x = goal_x-init_dist_x
     rel_y = goal_y-init_dist_y
     goal_theta = math.atan2(rel_y,rel_x) * (180/3.14)
@@ -731,7 +731,24 @@ def rotate(angle):
         else:
             desired_angle = desired_angle + 360
     while(theta > desired_angle + errorband) or (theta < desired_angle - errorband):
+        print "theta %f" %(theta) + " desired %f" %(desired_angle) + " error %f" %(error)
+        # if(theta < 0 or desired_angle <0 and (theta < 0 and desired_angle <0 )):
+        #     a = abs(theta)
+        #     b = abs(desired_angle)
+        #     c = 180 - a
+        #     d = 180 - b
+        #     e = c+d
+        #     if theta > desired_angle:
+        #         error = e
+        #     else:
+        #         error = -e
+        # else:
         error = theta-desired_angle
+        if (error > 180 or error < -180):
+            if (error > 0):
+                error = (360 - error)
+            else:
+                error = (error + 360)
         publishTwist(0,-error*p)
         time.sleep(0.05) 
     publishTwist(0, 0)
