@@ -255,6 +255,7 @@ class GridMap:
 
             #expand each neighbor
             for neighbor in validNeighbors:
+                
                 continueFlag = False
                 #if the neighbor hasn't been expanded yet
                 if(not self.isMyPointInClosedSet(neighbor)):
