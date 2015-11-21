@@ -685,28 +685,19 @@ def driveStraight(maxspeed, distance):
 #known to be buggy 
 def rotate(angle):
     init_angle = theta
-    #print "%f" % (init_angle)
     desired_angle = init_angle + angle
+    p = 0.015
+    error = 0
     errorband = 2 
-    print "Start turn"
     if(desired_angle < -180) or (desired_angle >= 180):
         if(angle > 0):
             desired_angle = desired_angle - 360
         else:
             desired_angle = desired_angle + 360
-    if(angle < 0):
-        while((theta > desired_angle + errorband) or (theta < desired_angle - errorband)) and not rospy.is_shutdown():
-            error = abs(theta-desired_angle) #implement later
-            publishTwist(0,0.50)
-            #print "%f" %(xPos) + ", %f" %(yPos) + ", %f" %(theta)
-            time.sleep(0.10) 
-    else:
-        while((theta > desired_angle + errorband) or (theta < desired_angle - errorband)) and not rospy.is_shutdown():
-            error = abs(theta-desired_angle)
-            publishTwist(0,-0.50)
-            #print "%f" %(xPos) + ", %f" %(yPos) + ", %f" %(theta)
-            time.sleep(0.10)
-    print "Done turn"
+    while(theta > desired_angle + errorband) or (theta < desired_angle - errorband):
+        error = theta-desired_angle
+        publishTwist(0,-error*p)
+        time.sleep(0.05) 
     publishTwist(0, 0)
 
 
