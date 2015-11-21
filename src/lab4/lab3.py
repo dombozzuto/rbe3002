@@ -75,7 +75,7 @@ def readInitPose(initpose):
     xInit = px
     yInit = py
     thetaInit = yaw * 180.0 / math.pi
-    print xInit,xInit,thetaInit
+    print xInit,yInit,thetaInit
 
 	
 def startCallBack(data):
