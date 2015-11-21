@@ -251,23 +251,30 @@ class GridMap:
 
             #check neighbors
             validNeighbors = self.getValidNeighbors(currentCell.point.x, currentCell.point.y)
+            validNeighbors = validNeighbors + self.getValidDiagonalNeighbors(currentCell.point.x, currentCell.point.y)
 
             #expand each neighbor
             for neighbor in validNeighbors:
+                continueFlag = False
                 #if the neighbor hasn't been expanded yet
                 if(not self.isMyPointInClosedSet(neighbor)):
                     # manhattan distance from start to currentCell
-                    tentativeGScore = self.map[currentCell.point.y][currentCell.point.x].gScore + 0.5
+                    distToNeighbor = float(math.sqrt(pow(currentCell.point.x - neighbor.point.x, 2) + pow(currentCell.point.y - neighbor.point.y, 2)))
+                    print distToNeighbor
+                    tentativeGScore = self.map[currentCell.point.y][currentCell.point.x].gScore + float(distToNeighbor) #0.5
                     # tentativeGScore = abs(x-goalX) + abs(y-goalY)
                     #add the neighbor to openset and update scores
                     if(not self.isMyPointInOpenSet(neighbor)):
                         self.openSet.append(neighbor)
+                    #only update if this is a better path to the node
+                    elif (tentativeGScore >= self.map[neighbor.point.y][neighbor.point.x].gScore):
+                        continueFlag = True
+                    
+                    if(not continueFlag):
                         self.map[neighbor.point.y][neighbor.point.x].cameFrom = currentCell
                         self.updateGScore(neighbor.point.x, neighbor.point.y, tentativeGScore)
                         self.calculateFScore(neighbor.point.x, neighbor.point.y)
-                    #only update if this is a better path to the node
-                    elif (tentativeGScore >= self.map[neighbor.point.y][neighbor.point.x].gScore):
-                        continue
+
 
     
 
@@ -334,6 +341,32 @@ class GridMap:
             if(self.map[currentY][currentX+1].blocked == 0):
                 print "This neighbor is marked as valid:", currentX+1, currentY
                 validNeighbors.append(self.map[currentY][currentX+1]);
+
+        return validNeighbors
+
+
+    def getValidDiagonalNeighbors(self, currentX, currentY):
+        validNeighbors = []
+        nwBoundOK = (currentY-1 >= 0) and (currentX-1 >= 0)
+        neBoundOK = (currentY-1 >= 0) and (currentX + 1 < self.width)
+        swBoundOK = (currentY+1 < self.height) and (currentX-1 >= 0)
+        seBoundOK = (currentY+1 < self.height) and (currentX+1 < self.width)
+
+        if(nwBoundOK):
+            if(self.map[currentY-1][currentX-1].blocked == 0):
+                validNeighbors.append(self.map[currentY-1][currentX-1])
+
+        if(neBoundOK):
+            if(self.map[currentY-1][currentX+1].blocked == 0):
+                validNeighbors.append(self.map[currentY-1][currentX+1])
+
+        if(swBoundOK):
+            if(self.map[currentY+1][currentX-1].blocked == 0):
+                validNeighbors.append(self.map[currentY+1][currentX-1])
+
+        if(seBoundOK):
+            if(self.map[currentY+1][currentX+1].blocked == 0):
+                validNeighbors.append(self.map[currentY+1][currentX+1])
 
         return validNeighbors
 
@@ -492,13 +525,16 @@ def expandWalls(width, height, mapData):
     leftBound = 0
     downBound = height-1
     rightBound = width-1
+    print '-----------------------------------'
+    print width, height
+    print '-----------------------------------'
     #first pass expands borders with 'x' character
     for x in range(width):
         for y in range(height):
-            upBoundOK = (x-1>=upBound)
-            downBoundOK = (x+1<downBound)
-            leftBoundOK = (y-1>=leftBound)
-            rightBoundOK = (y+1<rightBound)
+            upBoundOK = (y-1>=upBound)
+            downBoundOK = (y+1<downBound)
+            leftBoundOK = (x-1>=leftBound)
+            rightBoundOK = (x+1<rightBound)
             print "X:", x, "Y:", y
             #if there is a wall at this position...
             if(mapData[y][x] == 100):
@@ -518,10 +554,10 @@ def expandWalls(width, height, mapData):
                     mapData[y-1][x-1] = 'x'
                 if(downBoundOK and rightBoundOK) and (mapData[y+1][x+1] != 100):
                     mapData[y+1][x+1] = 'x'
-                if(upBoundOK and rightBoundOK) and (mapData[y+1][x-1] != 100):
-                    mapData[y+1][x-1] = 'x'
-                if(downBoundOK and leftBoundOK) and (mapData[y-1][x+1] != 100):
+                if(upBoundOK and rightBoundOK) and (mapData[y-1][x+1] != 100):
                     mapData[y-1][x+1] = 'x'
+                if(downBoundOK and leftBoundOK) and (mapData[y+1][x-1] != 100):
+                    mapData[y+1][x-1] = 'x'
 
     #second pass replaces x's with 100's
     for x in range(width):
@@ -748,11 +784,14 @@ if __name__ == '__main__':
         initposeSub = rospy.Subscriber('/initialpose', PoseWithCovarianceStamped, readInitPose)
 
         initGridCell()
+        print width, height
         # allow subscriber time to callback
         rospy.sleep(1)
         filledMap = map1Dto2D(width, height,mapData)
+        print len(filledMap), len(filledMap[0])
         shrinkedMap = shrinkMap(width,height,filledMap)
-       
+        print len(shrinkedMap), len(shrinkedMap[0])
+
         newHeight = len(shrinkedMap)
         newWidth = len(shrinkedMap[0])
 
