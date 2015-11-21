@@ -1,0 +1,7 @@
+set(_CATKIN_CURRENT_PACKAGE "lab4")
+set(lab4_MAINTAINER "dombozzuto <dombozzuto@todo.todo>")
+set(lab4_DEPRECATED "")
+set(lab4_VERSION "0.0.0")
+set(lab4_BUILD_DEPENDS )
+set(lab4_RUN_DEPENDS )
+set(lab4_BUILDTOOL_DEPENDS "catkin")
