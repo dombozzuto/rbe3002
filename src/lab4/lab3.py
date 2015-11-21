@@ -40,15 +40,15 @@ theta = 0;
 
 
 
-def readWorldMap(data):
-# map listener
-    global mapData, grid
-    global width
-    global height
-    grid = data
-    mapData = data.data
-    width = data.info.width
-    height = data.info.height
+# def realWorldMap(data):
+# # map listener
+#     global mapData, grid
+#     global width
+#     global height
+#     grid = data
+#     mapData = data.data
+#     width = data.info.width
+#     height = data.info.height
 
 def readGoal(msg):
     px = msg.pose.position.x
