@@ -784,9 +784,9 @@ if __name__ == '__main__':
         initposeSub = rospy.Subscriber('/initialpose', PoseWithCovarianceStamped, readInitPose)
 
         initGridCell()
+        rospy.sleep(1)
         print width, height
         # allow subscriber time to callback
-        rospy.sleep(1)
         filledMap = map1Dto2D(width, height,mapData)
         print len(filledMap), len(filledMap[0])
         shrinkedMap = shrinkMap(width,height,filledMap)
