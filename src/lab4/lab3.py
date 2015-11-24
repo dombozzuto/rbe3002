@@ -290,6 +290,69 @@ class GridMap:
         totalPath.reverse()
         for cell in totalPath:
             print "X:", cell.point.x, "Y:", cell.point.y
+        return totalPath
+        
+    def getWaypoints(self, plist, maxInRow):
+	#setup some starting variables
+	currentDirection = ""
+	numPoints = len(plist)
+	numInRow = 0
+	
+	#exit immediately if were given a list that's too tiny
+	if(numPoints == 1):
+		return pointList
+	if(numPoints == 2):
+		return pointList
+
+	#initial empty list of waypoints
+	wayPoints = []
+	#iterate through the list of points
+	for i in range(1, numPoints):
+		#remember previous direction and compare to current direction
+		#a change in direction immediately indicates the need for a new waypoint
+		lastDirection = currentDirection
+		currentDirection = self.getMovingDirection(plist[i-1], plist[i])
+
+		#if were moving in the same direction, we need to keep track of
+		#how many cells we've moved in this direction
+		#if we've gone to the limit, add a new waypoint
+		if(currentDirection == lastDirection):
+			if(numInRow >= maxInRow):
+				wayPoints.append(plist[i-1])
+				numInRow = 0
+			numInRow += 1
+
+		#direction change, add a waypoint
+		else:
+			wayPoints.append(plist[i-1])
+			numInRow = 1
+
+	#always add the last point in the list.
+	wayPoints.append(plist[numPoints-1])
+	return wayPoints
+
+    #determine the change in direction between 2 points
+    def getMovingDirection(self, lastPoint, currentPoint):
+	#9 distinct possibilities (deltaX, deltaY)
+	#(assuming exactly 1 tile movement)
+	#(0,0 indicates no movement,  should never occur)
+	deltaX = currentPoint.x - lastPoint.x
+	deltaY = currentPoint.y - lastPoint.y
+	#start direction as a blank string
+	direction = ""
+	#take advantage of the fact that vertical direction always comes first
+	if(deltaY == -1): 
+		direction = "S"
+	if(deltaY == 1):
+		direction = "N"
+	#if its diagonal, its added to the end of the existing string
+	#if its pure horizontal movement, it becomes the only char in the string
+	if(deltaX == -1):
+		direction = direction + "W"
+	if(deltaX == 1):
+		direction = direction + "E"
+	#return the direction string
+	return direction
 
 
     #returns if a given point is in the closed set.
