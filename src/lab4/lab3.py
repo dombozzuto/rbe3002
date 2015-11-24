@@ -279,68 +279,6 @@ class GridMap:
         for cell in totalPath:
             print "X:", cell.point.x, "Y:", cell.point.y
         return totalPath
-        
-    def getWaypoints(self, plist, maxInRow):
-	#setup some starting variables
-	currentDirection = ""
-	numPoints = len(plist)
-	numInRow = 0
-	
-	#exit immediately if were given a list that's too tiny
-	if(numPoints == 1):
-		return pointList
-	if(numPoints == 2):
-		return pointList
-
-	#initial empty list of waypoints
-	wayPoints = []
-	#iterate through the list of points
-	for i in range(1, numPoints):
-		#remember previous direction and compare to current direction
-		#a change in direction immediately indicates the need for a new waypoint
-		lastDirection = currentDirection
-		currentDirection = self.getMovingDirection(plist[i-1], plist[i])
-
-		#if were moving in the same direction, we need to keep track of
-		#how many cells we've moved in this direction
-		#if we've gone to the limit, add a new waypoint
-		if(currentDirection == lastDirection):
-			if(numInRow >= maxInRow):
-				wayPoints.append(plist[i-1])
-				numInRow = 0
-			numInRow += 1
-
-		#direction change, add a waypoint
-		else:
-			wayPoints.append(plist[i-1])
-			numInRow = 1
-
-	#always add the last point in the list.
-	wayPoints.append(plist[numPoints-1])
-	return wayPoints
-
-    #determine the change in direction between 2 points
-    def getMovingDirection(self, lastPoint, currentPoint):
-	#9 distinct possibilities (deltaX, deltaY)
-	#(assuming exactly 1 tile movement)
-	#(0,0 indicates no movement,  should never occur)
-	deltaX = currentPoint.x - lastPoint.x
-	deltaY = currentPoint.y - lastPoint.y
-	#start direction as a blank string
-	direction = ""
-	#take advantage of the fact that vertical direction always comes first
-	if(deltaY == -1): 
-		direction = "S"
-	if(deltaY == 1):
-		direction = "N"
-	#if its diagonal, its added to the end of the existing string
-	#if its pure horizontal movement, it becomes the only char in the string
-	if(deltaX == -1):
-		direction = direction + "W"
-	if(deltaX == 1):
-		direction = direction + "E"
-	#return the direction string
-	return direction
 
 
     #returns if a given point is in the closed set.
@@ -422,31 +360,68 @@ class GridMap:
 
         return validNeighbors
 
-def wayPoints(path):
+def getWaypoints(plist, maxInRow):
+    #setup some starting variables
+    currentDirection = ""
+    numPoints = len(plist)
+    numInRow = 0
+    
+    #exit immediately if were given a list that's too tiny
+    if(numPoints == 1):
+        return pointList
+    if(numPoints == 2):
+        return pointList
+
+    #initial empty list of waypoints
     wayPoints = []
-    previousX = 0
-    previousY = 0
-    following = True
-    for cell in path:
-        if(following):
-            if((cell.point.x == previousX) and (cell.point.y != previousY)):
-                wayPoints.append(cell)
-                following != following
+    #iterate through the list of points
+    for i in range(1, numPoints):
+        #remember previous direction and compare to current direction
+        #a change in direction immediately indicates the need for a new waypoint
+        lastDirection = currentDirection
+        currentDirection = getMovingDirection(plist[i-1], plist[i])
+
+        #if were moving in the same direction, we need to keep track of
+        #how many cells we've moved in this direction
+        #if we've gone to the limit, add a new waypoint
+        print "Got Here 1"
+        if(currentDirection == lastDirection):
+            if(numInRow >= maxInRow):
+                wayPoints.append(plist[i-1])
+                numInRow = 0
+            numInRow += 1
+
+        #direction change, add a waypoint
         else:
-            if((cell.point.y == previousY) and (cell.point.x != previousX)):
-                wayPoints.append(cell)
-                following != following
-    pathList = []
-    for cell in wayPoints:
-        print cell.point.x, cell.point.y
-        p = Point()
-        p.x=cell.point.x
-        p.y=cell.point.y
-        p.z=0
-        pathList.append(p)    
-    publishGridCellList(pathList,0)
-    print wayPoints
+            wayPoints.append(plist[i-1])
+            numInRow = 1
+        print "Got Here 2"
+    #always add the last point in the list.
+    wayPoints.append(plist[numPoints-1])
     return wayPoints
+
+#determine the change in direction between 2 points
+def getMovingDirection(lastPoint, currentPoint):
+    #9 distinct possibilities (deltaX, deltaY)
+    #(assuming exactly 1 tile movement)
+    #(0,0 indicates no movement,  should never occur)
+    deltaX = currentPoint.x - lastPoint.x
+    deltaY = currentPoint.y - lastPoint.y
+    #start direction as a blank string
+    direction = ""
+    #take advantage of the fact that vertical direction always comes first
+    if(deltaY == -1): 
+        direction = "S"
+    if(deltaY == 1):
+        direction = "N"
+    #if its diagonal, its added to the end of the existing string
+    #if its pure horizontal movement, it becomes the only char in the string
+    if(deltaX == -1):
+        direction = direction + "W"
+    if(deltaX == 1):
+        direction = direction + "E"
+    #return the direction string
+    return direction
 
 def printTotalPath():
     global resolution
@@ -462,7 +437,9 @@ def printTotalPath():
         p.z=0
         pathList.append(p)    
     publishGridCellList(pathList,2)
-    for pnt in pathList:
+    print "Got here Start"
+    wayPointList = getWaypoints(pathList,5)
+    for pnt in wayPointList:
         px = float((pnt.x+x0/scale)/xyscale)+1/(2*xyscale) + originx
         py = float((pnt.y+y0/scale)/xyscale)+1/(2*xyscale) + originy
         navToPosePoint(px,py)
@@ -591,7 +568,7 @@ def shrinkMap(width, height, mapData2D):
         for y in range(height/scale):
             for j in range(scale):
                 for k in range(scale):
-                    if(mapData2D[y*scale+k][x*scale+j] > 80):
+                    if(mapData2D[y*scale+k][x*scale+j] > 90):
                         newMap[y][x] = 100
     return newMap
 
@@ -844,6 +821,8 @@ def publishTwist(u,w):
 
 #odometry callback, gets odom data from subscribed topic
 def odomCallback(data):
+    global pose
+    
     odom_list.waitForTransform('map', 'base_footprint', rospy.Time(0), rospy.Duration(1.0))
     (position, orientation) = odom_list.lookupTransform('map','base_footprint', rospy.Time(0))
     x=position[0]
@@ -865,7 +844,7 @@ def driveStraight(maxspeed, distance):
     u = maxspeed;
     w = 0;
     minspeed = 0.1 #minimum speed
-    delay = 0.15
+    delay = 0.2
     #initial coordinates
     init_dist_x = xPos
     init_dist_y = yPos 
@@ -899,7 +878,7 @@ def rotate(angle):
     error = 0
     errorband = 2 #degrees
     minspeed = 20 #minimum turning speed
-    delay = 0.10
+    delay = 0.2
     if(desired_angle < -180) or (desired_angle >= 180):
         if(angle > 0):
             desired_angle = desired_angle - 360
@@ -944,23 +923,25 @@ if __name__ == '__main__':
         AMap = 0
         worldMap = 0
         path = 0
-        scale = 4
+        scale = 2
         # rospy.init_node('lab3')
         sub = rospy.Subscriber('/odom', Odometry, odomCallback)
         pub = rospy.Publisher('/cmd_vel_mux/input/teleop', Twist, queue_size = 5)
         markerSub = rospy.Subscriber('/move_base_simple/goalrbe', PoseStamped, readGoal)
-        pathPub = rospy.Publisher('/path_path', Path, queue_size = 5)
+        pathPub = rospy.Publisher('/path_path', Path)
         initposeSub = rospy.Subscriber('/initialpose', PoseWithCovarianceStamped, readInitPose)
-
+        print "Done sub pub"
         initGridCell()
         rospy.sleep(3)
         
         # allow subscriber time to callback
+        print "Done init grid subpub"
         filledMap = map1Dto2D(width, height, mapData)
         reducedMap = reduceMap(width, height, filledMap)
 
         #print len(filledMap), len(filledMap[0])
         shrinkedMap = shrinkMap(reducedWidth,reducedHeight,reducedMap)
+        print "Done map manip"
         #shrinkedMap = shrinkMap(width,height,filledMap)
         #print len(shrinkedMap), len(shrinkedMap[0])
 
@@ -978,6 +959,7 @@ if __name__ == '__main__':
         #publishClosedCellsShrink(shrinkedMap)
         #publishClosedCellsShrink(expandedMap)
         ratio = 1.0/(resolution)
+        print "Done pub map"
         while ((yEnd == 0) or (xEnd == 0)) and not rospy.is_shutdown():
             pass
         #g = GridMap(width/scale, height/scale,shrinkedMap)
