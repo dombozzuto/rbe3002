@@ -75,7 +75,7 @@ def readInitPose(initpose):
     xInit = px
     yInit = py
     thetaInit = yaw * 180.0 / math.pi
-    print xInit,xInit,thetaInit
+    print xInit,yInit,thetaInit
 
 	
 def startCallBack(data):
@@ -109,7 +109,8 @@ class Cell:
         self.cameFrom = None
 
     def printCell(self):
-        print self.point.x, self.point.y, self.fScore, self.gScore, self.hScore
+        pass
+        #print self.point.x, self.point.y, self.fScore, self.gScore, self.hScore
 
 #defines an x,y coordinate as an object
 class MyPoint:
@@ -147,7 +148,7 @@ class GridMap:
         #properly assign coordinates to the cell objects
         for y in range(self.height):
             for x in range(self.width):
-                self.map[y][x] = Cell(x,y,-1,-1,-1,data2D[x][y])
+                self.map[y][x] = Cell(x,y,-1,-1,-1,data2D[y][x])
 
     #update fScore to a given fScore
     def updateFScore(self, xPos, yPos, score):
@@ -223,7 +224,7 @@ class GridMap:
 
         #while openSet is not empty...
         while(len(self.openSet) != 0):
-            print "Open set length: " ,len(self.openSet)
+            #print "Open set length: " ,len(self.openSet)
             #sort the list in order of increase fScore (lowest first)
             self.openSet.sort(key=lambda x: x.fScore)
             #pop the lowest off the open set and add it to the closed set
@@ -232,7 +233,7 @@ class GridMap:
             for o in self.openSet:
                 o.printCell()
 
-            print "Currently exploring:", currentCell.point.x, currentCell.point.y
+            #print "Currently exploring:", currentCell.point.x, currentCell.point.y
             self.closedSet.append(currentCell)
 
             # publish currentCell as 'astar' cell to GridCells in Rviz
@@ -260,7 +261,7 @@ class GridMap:
                 if(not self.isMyPointInClosedSet(neighbor)):
                     # manhattan distance from start to currentCell
                     distToNeighbor = float(math.sqrt(pow(currentCell.point.x - neighbor.point.x, 2) + pow(currentCell.point.y - neighbor.point.y, 2)))
-                    print distToNeighbor
+                    #print distToNeighbor
                     tentativeGScore = self.map[currentCell.point.y][currentCell.point.x].gScore + float(distToNeighbor) #0.5
                     # tentativeGScore = abs(x-goalX) + abs(y-goalY)
                     #add the neighbor to openset and update scores
@@ -321,25 +322,25 @@ class GridMap:
         if(currentY - 1 >= 0):
             #is this tile empty space? (== 0)
             if(self.map[currentY-1][currentX].blocked == 0):
-                print "This neighbor is marked as valid:", currentX, currentY-1
+                #print "This neighbor is marked as valid:", currentX, currentY-1
                 validNeighbors.append(self.map[currentY-1][currentX]);
 
         #check node below
         if(currentY + 1 < self.height):
             if(self.map[currentY+1][currentX].blocked == 0):
-                print "This neighbor is marked as valid:", currentX, currentY+1
+                #print "This neighbor is marked as valid:", currentX, currentY+1
                 validNeighbors.append(self.map[currentY+1][currentX]);
 
         #check node left
         if(currentX - 1 >= 0):
             if(self.map[currentY][currentX-1].blocked == 0):
-                print "This neighbor is marked as valid:", currentX-1, currentY
+                #print "This neighbor is marked as valid:", currentX-1, currentY
                 validNeighbors.append(self.map[currentY][currentX-1]);
 
         #check node right
         if(currentX + 1 < self.width):
             if(self.map[currentY][currentX+1].blocked == 0):
-                print "This neighbor is marked as valid:", currentX+1, currentY
+                #print "This neighbor is marked as valid:", currentX+1, currentY
                 validNeighbors.append(self.map[currentY][currentX+1]);
 
         return validNeighbors
@@ -411,7 +412,9 @@ def printTotalPath():
         pathList.append(p)    
     publishGridCellList(pathList,2)
     for pnt in pathList:
-        navToPosePoint(float(pnt.x/xyscale)+1/(2*xyscale),float(pnt.y/xyscale)+1/(2*xyscale))
+        px = float((pnt.x+x0/scale)/xyscale)+1/(2*xyscale) + originx
+        py = float((pnt.y+y0/scale)/xyscale)+1/(2*xyscale) + originy
+        navToPosePoint(px,py)
     #wayPoints(totalPath)
     # PublishGridCellPath(totalPath)
 
@@ -453,8 +456,10 @@ def publishGridCellList(lst,typ):
     pntList=[]
     for pnt in lst:
         p = Point()
-        p.x= float(pnt.x/xyscale)+1/(2*xyscale)
-        p.y= float(pnt.y/xyscale)+1/(2*xyscale)
+        # p.x= float(pnt.x/xyscale)+1/(2*xyscale)
+        # p.y= float(pnt.y/xyscale)+1/(2*xyscale)
+        p.x = float((pnt.x+x0/scale)/xyscale)+1/(2*xyscale) + originx
+        p.y = float((pnt.y+y0/scale)/xyscale)+1/(2*xyscale) + originy
         p.z=0
         pntList.append(p)
 
@@ -489,18 +494,40 @@ def readWorldMap(data):
     global width
     global height
     global resolution
+    global originx
+    global originy
     grid = data
     mapData = data.data
     width = data.info.width
     height = data.info.height
     resolution = data.info.resolution
+    originx = data.info.origin.position.x
+    originy = data.info.origin.position.y
+
+#callback for map data
+def readGlobalCostMap(data):
+# map listener
+    global mapData, grid
+    global width
+    global height
+    global resolution
+    global originx
+    global originy
+    grid = data
+    mapData = data.data
+    width = data.info.width
+    height = data.info.height
+    resolution = data.info.resolution
+    originx = data.info.origin.position.x
+    originy = data.info.origin.position.y
 
 def initGridCell():
     global openPub
     global closedPub
     global pathVizPub
     global astarVizPub
-    worldMapSub = rospy.Subscriber('/map', OccupancyGrid, readWorldMap)
+    #worldMapSub = rospy.Subscriber('/map', OccupancyGrid, readWorldMap)
+    globalCostMapSub = rospy.Subscriber('/move_base/global_costmap/costmap', OccupancyGrid, readGlobalCostMap)
     openPub = rospy.Publisher('/cell_path/open', GridCells, queue_size=10)
     closedPub = rospy.Publisher('/cell_path/closed', GridCells, queue_size=10)
     pathVizPub = rospy.Publisher('/cell_path/path', GridCells, queue_size=10)
@@ -513,9 +540,9 @@ def shrinkMap(width, height, mapData2D):
         for y in range(height/scale):
             for j in range(scale):
                 for k in range(scale):
-                    if(mapData2D[x*scale+j][y*scale+k] == 100):
-                        newMap[x][y] = 100
-    return newMap         
+                    if(mapData2D[y*scale+k][x*scale+j] > 80):
+                        newMap[y][x] = 100
+    return newMap
 
 def expandWalls(width, height, mapData):
 
@@ -576,9 +603,62 @@ def map1Dto2D(width,height,data):
     i = 0
     for y in range(height):
         for x in range(width):
-            map2D[x][y] = data[i]
+            map2D[y][x] = data[i]
             i = i + 1
     return map2D
+
+def reduceMap(width,height,data2D):
+
+    global reducedHeight
+    global reducedWidth
+    global x0
+    global x1
+    global y0
+    global y1
+
+    x0 = 0
+    x1 = 0
+    y0 = 0
+    y1 = 0
+    is_x0_found = 1
+    is_x1_found = 1
+    is_y0_found = 1
+    is_y1_found = 1
+
+
+    for y in range(height):
+        for x in range(width):
+            if(is_y0_found):
+                if (data2D[y][x] != -1):
+                    y0 = y
+                    is_y0_found = 0
+            if(is_y1_found):
+                if (data2D[height-y-1][x] != -1):
+                    y1 = height-y-1
+                    is_y1_found = 0  
+    for x in range(width):
+        for y in range(height):
+            if(is_x0_found):
+                if (data2D[y][x] != -1):
+                    x0 = x
+                    is_x0_found = 0
+            if(is_x1_found):
+                if (data2D[y][width-x-1] != -1):
+                    x1 = width-x-1
+                    is_x1_found = 0
+
+    reducedHeight = abs(y1 - y0)
+    reducedWidth = abs(x1 - x0)
+
+    map2D = [[0 for x in range(reducedWidth)] for x in range(reducedHeight)]
+
+    for y in range(reducedHeight):
+        for x in range(reducedWidth):
+            map2D[y][x] = data2D[y0+y][x0+x]
+
+    return map2D
+
+
 
 def createOpenGrid():
     global resolution
@@ -613,7 +693,7 @@ def publishClosedCells(g):
     pointList = []
     for x in range(1,width):
         for y in range(1,height):
-            if(g.map[x][y].blocked == 100):
+            if(g.map[y][x].blocked == 100):
                 p = Point()#float(x/xyscale),float(y/xyscale))
                 p.x = float(x/xyscale)
                 p.y = float(y/xyscale)
@@ -634,10 +714,41 @@ def publishClosedCellsShrink(map2D):
     pointList = []
     for x in range(width/scale):
         for y in range(height/scale):
-            if(map2D[x][y] == 100):
+            if(map2D[y][x] > 80):
                 p = Point()#float(x/xyscale),float(y/xyscale))
                 p.x = float(x/xyscale)+1/(2*xyscale)
                 p.y = float(y/xyscale)+1/(2*xyscale)
+                p.z = 0
+                pointList.append(p)
+    gridCells.cells = pointList
+    closedPub.publish(gridCells)
+
+def publishClosedCellsReduce(map2D):
+    global resolution
+    global scale
+
+    global reducedHeight
+    global reducedWidth
+    global x0
+    global x1
+    global y0
+    global y1
+
+    gridCells = GridCells()
+    gridCells.header.frame_id = "/map"
+    gridCells.header.stamp = rospy.Time.now()
+    gridCells.cell_width = resolution*scale
+    gridCells.cell_height = resolution*scale
+    xyscale = 1.0/(resolution*scale)
+    pointList = []
+
+
+    for x in range(reducedWidth/scale):
+        for y in range(reducedHeight/scale):
+            if(map2D[y][x] > 80):
+                p = Point()
+                p.x = float((x+x0/scale)/xyscale)+1/(2*xyscale) + originx
+                p.y = float((y+y0/scale)/xyscale)+1/(2*xyscale) + originy
                 p.z = 0
                 pointList.append(p)
     gridCells.cells = pointList
@@ -654,6 +765,7 @@ def navToPosePoint(goal_x,goal_y):
     global yPos
     global theta
     #print "goals x %f" %(goal_x) + "goals y %f" %(goal_y) + "theta %f" %(theta)
+
     init_dist_x = xPos
     init_dist_y = yPos
     init_theta = theta
@@ -697,7 +809,7 @@ def odomCallback(data):
 def driveStraight(maxspeed, distance):
     u = maxspeed;
     w = 0;
-    minspeed = 0.05
+    minspeed = 0.1
     init_dist_x = xPos
     init_dist_y = yPos
     d_traveled = 0
@@ -715,6 +827,7 @@ def driveStraight(maxspeed, distance):
             vel = ((distance - d_traveled)/(distance - d_seg2))*maxspeed + minspeed
         publishTwist(vel, 0)
         time.sleep(0.15)
+        print "init x %f"%(init_dist_x) + "init y %f"%(init_dist_y) + "xPos %f" %xPos + "yPos %f" %yPos + "Dt %f" %d_traveled + "D %f" %distance 
     publishTwist(0, 0)
 
 #rotate: rotates the robot around its center by a certain angle (in degrees)
@@ -722,7 +835,7 @@ def driveStraight(maxspeed, distance):
 def rotate(angle):
     init_angle = theta
     desired_angle = init_angle + angle
-    p = 0.015
+    p = 0.025
     error = 0
     errorband = 2 
     if(desired_angle < -180) or (desired_angle >= 180):
@@ -746,11 +859,16 @@ def rotate(angle):
         error = theta-desired_angle
         if (error > 180 or error < -180):
             if (error > 0):
-                error = (360 - error)
+                error = (360 - error) + 20
             else:
-                error = (error + 360)
+                error = (error + 360) - 20
+        else:
+            if (error > 0):
+                error = error + 20
+            else:
+                error = error - 20
         publishTwist(0,-error*p)
-        time.sleep(0.05) 
+        time.sleep(0.10) 
     publishTwist(0, 0)
 
 
@@ -784,30 +902,47 @@ if __name__ == '__main__':
         initposeSub = rospy.Subscriber('/initialpose', PoseWithCovarianceStamped, readInitPose)
 
         initGridCell()
-        print width, height
+        rospy.sleep(3)
+        
         # allow subscriber time to callback
-        rospy.sleep(1)
-        filledMap = map1Dto2D(width, height,mapData)
-        print len(filledMap), len(filledMap[0])
-        shrinkedMap = shrinkMap(width,height,filledMap)
-        print len(shrinkedMap), len(shrinkedMap[0])
+        filledMap = map1Dto2D(width, height, mapData)
+        reducedMap = reduceMap(width, height, filledMap)
+        #print reducedMap
+        print reducedWidth, reducedHeight
+        print originx, originy
+        #print len(filledMap), len(filledMap[0])
+        shrinkedMap = shrinkMap(reducedWidth,reducedHeight,reducedMap)
+        #shrinkedMap = shrinkMap(width,height,filledMap)
+        #print len(shrinkedMap), len(shrinkedMap[0])
 
-        newHeight = len(shrinkedMap)
-        newWidth = len(shrinkedMap[0])
+        #newHeight = len(shrinkedMap)
+        #newWidth = len(shrinkedMap[0])
 
-        expandedMap = expandWalls(newWidth, newHeight, shrinkedMap)
+        #expandedMap = expandWalls(newWidth, newHeight, shrinkedMap)
 
 
+        xyscale = 1.0/(resolution*scale)
 
+
+        #publishClosedCellsReduce(reducedMap)
+        publishClosedCellsReduce(shrinkedMap)
         #publishClosedCellsShrink(shrinkedMap)
-        publishClosedCellsShrink(expandedMap)
+        #publishClosedCellsShrink(expandedMap)
         ratio = 1.0/(resolution)
         while ((yEnd == 0) or (xEnd == 0)) and not rospy.is_shutdown():
             pass
         #g = GridMap(width/scale, height/scale,shrinkedMap)
-        g = GridMap(width/scale, height/scale,expandedMap)
+        g = GridMap(reducedWidth/scale, reducedHeight/scale, shrinkedMap)
         #ratio = (resolution*scale)
-        g.aStarSearch(int(xPos*ratio/scale),int(yPos*ratio/scale),int(xEnd*ratio/scale),int(yEnd*ratio/scale))
+        #print xEnd, yEnd
+        print reducedWidth/scale, reducedHeight/scale
+        cellx = int(((-originx - 1/(2*xyscale)+xEnd)*xyscale - x0/scale))
+        celly = int(((-originy - 1/(2*xyscale)+yEnd)*xyscale - y0/scale))
+        initx = int(((-originx - 1/(2*xyscale)+xPos)*xyscale - x0/scale))
+        inity = int(((-originy - 1/(2*xyscale)+yPos)*xyscale - y0/scale))
+        print cellx, celly
+        #print int((xPos)*ratio/scale - originx - x0/scale),int((yPos)*ratio/scale - originy - y0/scale)
+        g.aStarSearch(initx,inity,cellx,celly)
         #print "\n\n\n"
         #g.printScores()
         printTotalPath()
