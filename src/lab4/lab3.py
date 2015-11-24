@@ -10,7 +10,7 @@ from tf.transformations import euler_from_quaternion
 from numpy import *
 from nav_msgs.msg import OccupancyGrid, GridCells, Path, Odometry
 from geometry_msgs.msg import Point, Pose, PoseStamped, Twist, PoseWithCovarianceStamped, Quaternion
-#from AStar import AStar
+
 import time
 from tf.transformations import euler_from_quaternion
 
@@ -20,7 +20,6 @@ from kobuki_msgs.msg import BumperEvent
 xInit = 0
 yInit = 0
 thetaInit = 0
-
 xEnd = 0
 yEnd = 0
 thetaEnd = 0
@@ -34,8 +33,8 @@ wheel_rad  = 3.5  #cm
 wheel_base = 23.0 #cm
 
 #Odometry Data Variables
-xPos = 2;
-yPos = 2;
+xPos = 0;
+yPos = 0;
 theta = 0;
 
 def readGoal(msg):
@@ -726,6 +725,8 @@ def publishClosedCellsReduce(map2D):
     global y0
     global y1
 
+    costThresh = 80 #when to consider it a wall
+
     gridCells = GridCells()
     gridCells.header.frame_id = "/map"
     gridCells.header.stamp = rospy.Time.now()
@@ -737,7 +738,7 @@ def publishClosedCellsReduce(map2D):
 
     for x in range(reducedWidth/scale):
         for y in range(reducedHeight/scale):
-            if(map2D[y][x] > 80):
+            if(map2D[y][x] > costThresh):
                 p = Point()
                 p.x = float((x+x0/scale)/xyscale)+1/(2*xyscale) + originx
                 p.y = float((y+y0/scale)/xyscale)+1/(2*xyscale) + originy
@@ -884,7 +885,7 @@ if __name__ == '__main__':
         sub = rospy.Subscriber('/odom', Odometry, odomCallback)
         pub = rospy.Publisher('/cmd_vel_mux/input/teleop', Twist, queue_size = 5)
         markerSub = rospy.Subscriber('/move_base_simple/goalrbe', PoseStamped, readGoal)
-        pathPub = rospy.Publisher('/path_path', Path)
+        pathPub = rospy.Publisher('/path_path', Path, queue_size = 5)
         initposeSub = rospy.Subscriber('/initialpose', PoseWithCovarianceStamped, readInitPose)
 
         initGridCell()
@@ -920,14 +921,13 @@ if __name__ == '__main__':
         #ratio = (resolution*scale)
         #print xEnd, yEnd
         print reducedWidth/scale, reducedHeight/scale
-        cellx = int(((-originx - 1/(2*xyscale)+xEnd)*xyscale - x0/scale))
-        celly = int(((-originy - 1/(2*xyscale)+yEnd)*xyscale - y0/scale))
+        endx = int(((-originx - 1/(2*xyscale)+xEnd)*xyscale - x0/scale))
+        endy = int(((-originy - 1/(2*xyscale)+yEnd)*xyscale - y0/scale))
         initx = int(((-originx - 1/(2*xyscale)+xPos)*xyscale - x0/scale))
         inity = int(((-originy - 1/(2*xyscale)+yPos)*xyscale - y0/scale))
-        print cellx, celly
+        print endx, endy
         #print int((xPos)*ratio/scale - originx - x0/scale),int((yPos)*ratio/scale - originy - y0/scale)
-        g.aStarSearch(initx,inity,cellx,celly)
-        #print "\n\n\n"
+        g.aStarSearch(initx,inity,endx,endy)
         #g.printScores()
         printTotalPath()
     except rospy.ROSInterruptException:
