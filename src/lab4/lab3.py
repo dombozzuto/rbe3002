@@ -38,18 +38,6 @@ xPos = 2;
 yPos = 2;
 theta = 0;
 
-
-
-# def realWorldMap(data):
-# # map listener
-#     global mapData, grid
-#     global width
-#     global height
-#     grid = data
-#     mapData = data.data
-#     width = data.info.width
-#     height = data.info.height
-
 def readGoal(msg):
     px = msg.pose.position.x
     py = msg.pose.position.y
@@ -606,26 +594,30 @@ def map1Dto2D(width,height,data):
             map2D[y][x] = data[i]
             i = i + 1
     return map2D
-
+#Gets a 2D array of map data and returns a 2D array of map data that reduces the size
+#to a map that captures all the data in the minimum length dimensions
+#param: width, height (of original 2D map), data2D (2D array map)
 def reduceMap(width,height,data2D):
 
     global reducedHeight
     global reducedWidth
+
     global x0
     global x1
     global y0
     global y1
-
+    #sets the extreme points to 0
     x0 = 0
     x1 = 0
     y0 = 0
     y1 = 0
+    #sets extrema flags to 1 (if set to 0, means that it was found and shouldn't be checked again)
     is_x0_found = 1
     is_x1_found = 1
     is_y0_found = 1
     is_y1_found = 1
-
-
+    # -1 means unexplored area
+    #searches for extrema over height
     for y in range(height):
         for x in range(width):
             if(is_y0_found):
@@ -635,7 +627,8 @@ def reduceMap(width,height,data2D):
             if(is_y1_found):
                 if (data2D[height-y-1][x] != -1):
                     y1 = height-y-1
-                    is_y1_found = 0  
+                    is_y1_found = 0
+    #searches for extrema over width
     for x in range(width):
         for y in range(height):
             if(is_x0_found):
@@ -646,18 +639,17 @@ def reduceMap(width,height,data2D):
                 if (data2D[y][width-x-1] != -1):
                     x1 = width-x-1
                     is_x1_found = 0
-
+    #calculates the reduced height and width of the new array
     reducedHeight = abs(y1 - y0)
     reducedWidth = abs(x1 - x0)
-
+    #create empty 2D map with reduced height and width
     map2D = [[0 for x in range(reducedWidth)] for x in range(reducedHeight)]
-
+    #fill the 2D map with the data from the initial map, but only
+    #from the appropriate cells
     for y in range(reducedHeight):
         for x in range(reducedWidth):
             map2D[y][x] = data2D[y0+y][x0+x]
-
     return map2D
-
 
 
 def createOpenGrid():
@@ -754,31 +746,30 @@ def publishClosedCellsReduce(map2D):
     gridCells.cells = pointList
     closedPub.publish(gridCells)
 
-#def nav():
-    #sub = rospy.Subscriber('/move_base_simple/goalrbe', PoseStamped, navToPose)
-    #initposeSub = rospy.Subscriber('/initialpose', PoseWithCovarianceStamped, readInitPose)
-
-#publishTwist: publishes the Twist message to the cmd_vel_mux/input/teleop topic using the given linear(u) and angular(w) velocity
-
 def navToPosePoint(goal_x,goal_y):
     global xPos
     global yPos
     global theta
     #print "goals x %f" %(goal_x) + "goals y %f" %(goal_y) + "theta %f" %(theta)
-
     init_dist_x = xPos
     init_dist_y = yPos
     init_theta = theta
+    maxspeed = 0.2
     #print "init x %f" %(init_dist_x) + "init y %f" %(init_dist_y) + "init theta %f" %(init_theta)
+    #This is the relative x,y needed to travel to get to goal from start
     rel_x = goal_x-init_dist_x
     rel_y = goal_y-init_dist_y
+    #Calculate angle to turn
     goal_theta = math.atan2(rel_y,rel_x) * (180/3.14)
     #print "goal theta %f" %(goal_theta)
+    #Calculate distance needed to travel
     distance = math.sqrt(pow(goal_x-init_dist_x,2) + pow(goal_y-init_dist_y,2))
-    #print "spin!"
+    #|----Rotate----|
     rotate(goal_theta-init_theta)
-    driveStraight(0.2, distance)
+    #|----DriveStraight----|
+    driveStraight(maxspeed, distance)
 
+#publishTwist: publishes the Twist message to the cmd_vel_mux/input/teleop topic using the given linear(u) and angular(w) velocity
 def publishTwist(u,w):
     global pub
     twist = Twist()
@@ -786,9 +777,8 @@ def publishTwist(u,w):
     twist.angular.x = 0; twist.angular.y = 0; twist.angular.z = w
     pub.publish(twist)
 
+#odometry callback, gets odom data from subscribed topic
 def odomCallback(data):
-    global pose
-    #pose = Pose()
     odom_list.waitForTransform('map', 'base_footprint', rospy.Time(0), rospy.Duration(1.0))
     (position, orientation) = odom_list.lookupTransform('map','base_footprint', rospy.Time(0))
     x=position[0]
@@ -796,7 +786,6 @@ def odomCallback(data):
     w = orientation
     q = [w[0], w[1], w[2], w[3]]
     roll, pitch, yaw = euler_from_quaternion(q)
-    #convert yaw to degrees
     global xPos
     global yPos
     global theta
@@ -806,15 +795,21 @@ def odomCallback(data):
     #print xPos,yPos,theta
 
 #driveStraight: drives thr robot forward at a desired speed for a certain amount of time
+#param: maxspeed - speed limit, distance - desired travel length
 def driveStraight(maxspeed, distance):
     u = maxspeed;
     w = 0;
-    minspeed = 0.1
+    minspeed = 0.1 #minimum speed
+    delay = 0.15
+    #initial coordinates
     init_dist_x = xPos
-    init_dist_y = yPos
-    d_traveled = 0
-    d_seg1 = 0.2 * distance
-    d_seg2 = 0.8 * distance 
+    init_dist_y = yPos 
+    d_traveled = 0 #initial distance traveled
+    d_seg1 = 0.2 * distance #first 20% of distance
+    d_seg2 = 0.8 * distance #first 80% of distance
+
+    # |----seg1----|----------------seg2------------------|----seg3-----|
+    # |---speedup--|------------constantspeed-------------|--slowdown---|
 
     while((d_traveled  < distance) and not rospy.is_shutdown()):
         #determine the distance and if you have gone far enough
@@ -825,8 +820,8 @@ def driveStraight(maxspeed, distance):
             vel = maxspeed
         else:
             vel = ((distance - d_traveled)/(distance - d_seg2))*maxspeed + minspeed
-        publishTwist(vel, 0)
-        time.sleep(0.15)
+        publishTwist(vel, w)
+        time.sleep(delay)
         print "init x %f"%(init_dist_x) + "init y %f"%(init_dist_y) + "xPos %f" %xPos + "yPos %f" %yPos + "Dt %f" %d_traveled + "D %f" %distance 
     publishTwist(0, 0)
 
@@ -837,40 +832,31 @@ def rotate(angle):
     desired_angle = init_angle + angle
     p = 0.025
     error = 0
-    errorband = 2 
+    errorband = 2 #degrees
+    minspeed = 20 #minimum turning speed
+    delay = 0.10
     if(desired_angle < -180) or (desired_angle >= 180):
         if(angle > 0):
             desired_angle = desired_angle - 360
         else:
             desired_angle = desired_angle + 360
-    while(theta > desired_angle + errorband) or (theta < desired_angle - errorband):
+    #keep turning until target angle is within +- errorband 
+    while(((theta > desired_angle + errorband) or (theta < desired_angle - errorband)) and not rospy.is_shutdown()):
         print "theta %f" %(theta) + " desired %f" %(desired_angle) + " error %f" %(error)
-        # if(theta < 0 or desired_angle <0 and (theta < 0 and desired_angle <0 )):
-        #     a = abs(theta)
-        #     b = abs(desired_angle)
-        #     c = 180 - a
-        #     d = 180 - b
-        #     e = c+d
-        #     if theta > desired_angle:
-        #         error = e
-        #     else:
-        #         error = -e
-        # else:
-        error = theta-desired_angle
+        error = theta-desired_angle #error controller
         if (error > 180 or error < -180):
             if (error > 0):
-                error = (360 - error) + 20
+                error = (360 - error) + minspeed
             else:
-                error = (error + 360) - 20
+                error = (error + 360) - minspeed
         else:
             if (error > 0):
-                error = error + 20
+                error += minspeed
             else:
-                error = error - 20
-        publishTwist(0,-error*p)
-        time.sleep(0.10) 
-    publishTwist(0, 0)
-
+                error -= minspeed
+        publishTwist(0,-error*p) #publish Twist msg
+        time.sleep(delay) 
+    publishTwist(0, 0) #stop rotating, reached target
 
 
 if __name__ == '__main__':
@@ -907,9 +893,7 @@ if __name__ == '__main__':
         # allow subscriber time to callback
         filledMap = map1Dto2D(width, height, mapData)
         reducedMap = reduceMap(width, height, filledMap)
-        #print reducedMap
-        print reducedWidth, reducedHeight
-        print originx, originy
+
         #print len(filledMap), len(filledMap[0])
         shrinkedMap = shrinkMap(reducedWidth,reducedHeight,reducedMap)
         #shrinkedMap = shrinkMap(width,height,filledMap)
