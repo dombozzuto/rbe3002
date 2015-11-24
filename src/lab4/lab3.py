@@ -844,7 +844,7 @@ def driveStraight(maxspeed, distance):
     u = maxspeed;
     w = 0;
     minspeed = 0.1 #minimum speed
-    delay = 0.2
+    delay = 0.15
     #initial coordinates
     init_dist_x = xPos
     init_dist_y = yPos 
@@ -874,11 +874,11 @@ def driveStraight(maxspeed, distance):
 def rotate(angle):
     init_angle = theta
     desired_angle = init_angle + angle
-    p = 0.025
+    p = 0.01
     error = 0
     errorband = 2 #degrees
-    minspeed = 20 #minimum turning speed
-    delay = 0.2
+    minspeed = 35 #minimum turning speed
+    delay = 0.15
     if(desired_angle < -180) or (desired_angle >= 180):
         if(angle > 0):
             desired_angle = desired_angle - 360
@@ -923,7 +923,7 @@ if __name__ == '__main__':
         AMap = 0
         worldMap = 0
         path = 0
-        scale = 2
+        scale = 4
         # rospy.init_node('lab3')
         sub = rospy.Subscriber('/odom', Odometry, odomCallback)
         pub = rospy.Publisher('/cmd_vel_mux/input/teleop', Twist, queue_size = 5)
@@ -936,11 +936,14 @@ if __name__ == '__main__':
         
         # allow subscriber time to callback
         print "Done init grid subpub"
+        startTime = time.time()
         filledMap = map1Dto2D(width, height, mapData)
         reducedMap = reduceMap(width, height, filledMap)
 
         #print len(filledMap), len(filledMap[0])
         shrinkedMap = shrinkMap(reducedWidth,reducedHeight,reducedMap)
+        doneTime = time.time()
+        print "Map transform time:", doneTime-startTime
         print "Done map manip"
         #shrinkedMap = shrinkMap(width,height,filledMap)
         #print len(shrinkedMap), len(shrinkedMap[0])
