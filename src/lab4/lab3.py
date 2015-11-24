@@ -423,6 +423,29 @@ def getMovingDirection(lastPoint, currentPoint):
     #return the direction string
     return direction
 
+def aStarReplan(goalx,goaly):
+    global xPos
+    global yPos
+    global scale
+    global resolution
+    global g
+    startTime = time.time()
+    filledMap = map1Dto2D(width, height, mapData)
+    reducedMap = reduceMap(width, height, filledMap)
+    shrinkedMap = shrinkMap(reducedWidth,reducedHeight,reducedMap)
+    doneTime = time.time()
+    print "Map transform time:", doneTime-startTime
+    xyscale = 1.0/(resolution*scale)
+    publishClosedCellsReduce(shrinkedMap)
+    ratio = 1.0/(resolution)
+    #g = GridMap(reducedWidth/scale, reducedHeight/scale, shrinkedMap)
+    endx = int(((-originx - 1/(2*xyscale)+goalx)*xyscale - x0/scale))
+    endy = int(((-originy - 1/(2*xyscale)+goaly)*xyscale - y0/scale))
+    initx = int(((-originx - 1/(2*xyscale)+xPos)*xyscale - x0/scale))
+    inity = int(((-originy - 1/(2*xyscale)+yPos)*xyscale - y0/scale))
+    g.aStarSearch(initx,inity,endx,endy)
+    printTotalPath()
+
 def printTotalPath():
     global resolution
     global scale
@@ -439,10 +462,9 @@ def printTotalPath():
     publishGridCellList(pathList,2)
     print "Got here Start"
     wayPointList = getWaypoints(pathList,5)
-    for pnt in wayPointList:
-        px = float((pnt.x+x0/scale)/xyscale)+1/(2*xyscale) + originx
-        py = float((pnt.y+y0/scale)/xyscale)+1/(2*xyscale) + originy
-        navToPosePoint(px,py)
+    px = float((wayPointList[1].x+x0/scale)/xyscale)+1/(2*xyscale) + originx
+    py = float((wayPointList[1].y+y0/scale)/xyscale)+1/(2*xyscale) + originy
+    navToPosePoint(px,py)
     #wayPoints(totalPath)
     # PublishGridCellPath(totalPath)
 
@@ -916,6 +938,7 @@ if __name__ == '__main__':
         global odom_tf
         global odom_list
         print "Setup globals"
+        global g
 
         odom_list = tf.TransformListener()
 
@@ -934,7 +957,7 @@ if __name__ == '__main__':
         initGridCell()
         rospy.sleep(3)
         
-        # allow subscriber time to callback
+        #allow subscriber time to callback
         print "Done init grid subpub"
         startTime = time.time()
         filledMap = map1Dto2D(width, height, mapData)
@@ -965,19 +988,21 @@ if __name__ == '__main__':
         print "Done pub map"
         while ((yEnd == 0) or (xEnd == 0)) and not rospy.is_shutdown():
             pass
-        #g = GridMap(width/scale, height/scale,shrinkedMap)
-        g = GridMap(reducedWidth/scale, reducedHeight/scale, shrinkedMap)
-        #ratio = (resolution*scale)
-        #print xEnd, yEnd
-        print reducedWidth/scale, reducedHeight/scale
-        endx = int(((-originx - 1/(2*xyscale)+xEnd)*xyscale - x0/scale))
-        endy = int(((-originy - 1/(2*xyscale)+yEnd)*xyscale - y0/scale))
-        initx = int(((-originx - 1/(2*xyscale)+xPos)*xyscale - x0/scale))
-        inity = int(((-originy - 1/(2*xyscale)+yPos)*xyscale - y0/scale))
-        print endx, endy
+        while not rospy.is_shutdown():
+        # #g = GridMap(width/scale, height/scale,shrinkedMap)
+            g = GridMap(reducedWidth/scale, reducedHeight/scale, shrinkedMap)
+        # #ratio = (resolution*scale)
+        # #print xEnd, yEnd
+            aStarReplan(xEnd,yEnd)
+        # print reducedWidth/scale, reducedHeight/scale
+        # endx = int(((-originx - 1/(2*xyscale)+xEnd)*xyscale - x0/scale))
+        # endy = int(((-originy - 1/(2*xyscale)+yEnd)*xyscale - y0/scale))
+        # initx = int(((-originx - 1/(2*xyscale)+xPos)*xyscale - x0/scale))
+        # inity = int(((-originy - 1/(2*xyscale)+yPos)*xyscale - y0/scale))
+        #print endx, endy
         #print int((xPos)*ratio/scale - originx - x0/scale),int((yPos)*ratio/scale - originy - y0/scale)
-        g.aStarSearch(initx,inity,endx,endy)
+        #g.aStarSearch(initx,inity,endx,endy)
         #g.printScores()
-        printTotalPath()
+        #printTotalPath()
     except rospy.ROSInterruptException:
         pass
