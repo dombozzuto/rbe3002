@@ -429,6 +429,7 @@ def aStarReplan(goalx,goaly):
     global scale
     global resolution
     global g
+    global totalPath
     startTime = time.time()
     filledMap = map1Dto2D(width, height, mapData)
     reducedMap = reduceMap(width, height, filledMap)
@@ -445,10 +446,13 @@ def aStarReplan(goalx,goaly):
     inity = int(((-originy - 1/(2*xyscale)+yPos)*xyscale - y0/scale))
     g.aStarSearch(initx,inity,endx,endy)
     printTotalPath()
+    del totalPath[:] 
+
 
 def printTotalPath():
     global resolution
     global scale
+    global pathNotDone
     fscale = float(scale)
     xyscale = 1/(resolution*scale)
     pathList = []
@@ -464,7 +468,12 @@ def printTotalPath():
     wayPointList = getWaypoints(pathList,5)
     px = float((wayPointList[1].x+x0/scale)/xyscale)+1/(2*xyscale) + originx
     py = float((wayPointList[1].y+y0/scale)/xyscale)+1/(2*xyscale) + originy
-    navToPosePoint(px,py)
+    print "wayPoint Length %f" %(len(wayPointList))
+    if (len(wayPointList) > 1):
+        navToPosePoint(px,py)
+    else:
+        pathNotDone = 0
+
     #wayPoints(totalPath)
     # PublishGridCellPath(totalPath)
 
@@ -590,8 +599,9 @@ def shrinkMap(width, height, mapData2D):
         for y in range(height/scale):
             for j in range(scale):
                 for k in range(scale):
-                    if(mapData2D[y*scale+k][x*scale+j] > 90):
-                        newMap[y][x] = 100
+                    newMap[y][x] = mapData2D[y*scale+k][x*scale+j]
+                    # if(mapData2D[y*scale+k][x*scale+j] > 95):
+                    #     newMap[y][x] = 100
     return newMap
 
 def expandWalls(width, height, mapData):
@@ -788,7 +798,7 @@ def publishClosedCellsReduce(map2D):
     global y0
     global y1
 
-    costThresh = 80 #when to consider it a wall
+    costThresh = 98 #when to consider it a wall
 
     gridCells = GridCells()
     gridCells.header.frame_id = "/map"
@@ -908,13 +918,13 @@ def rotate(angle):
             desired_angle = desired_angle + 360
     #keep turning until target angle is within +- errorband 
     while(((theta > desired_angle + errorband) or (theta < desired_angle - errorband)) and not rospy.is_shutdown()):
-        print "theta %f" %(theta) + " desired %f" %(desired_angle) + " error %f" %(error)
         error = theta-desired_angle #error controller
+        print "theta %f" %(theta) + " desired %f" %(desired_angle) + " error %f" %(error)
         if (error > 180 or error < -180):
             if (error > 0):
-                error = (360 - error) + minspeed
+                error = (360 - error) - minspeed
             else:
-                error = (error + 360) - minspeed
+                error = (error + 360) + minspeed
         else:
             if (error > 0):
                 error += minspeed
@@ -939,6 +949,7 @@ if __name__ == '__main__':
         global odom_list
         print "Setup globals"
         global g
+        global pathNotDone
 
         odom_list = tf.TransformListener()
 
@@ -947,6 +958,7 @@ if __name__ == '__main__':
         worldMap = 0
         path = 0
         scale = 4
+        pathNotDone = 1
         # rospy.init_node('lab3')
         sub = rospy.Subscriber('/odom', Odometry, odomCallback)
         pub = rospy.Publisher('/cmd_vel_mux/input/teleop', Twist, queue_size = 5)
@@ -962,47 +974,20 @@ if __name__ == '__main__':
         startTime = time.time()
         filledMap = map1Dto2D(width, height, mapData)
         reducedMap = reduceMap(width, height, filledMap)
-
-        #print len(filledMap), len(filledMap[0])
         shrinkedMap = shrinkMap(reducedWidth,reducedHeight,reducedMap)
         doneTime = time.time()
         print "Map transform time:", doneTime-startTime
         print "Done map manip"
-        #shrinkedMap = shrinkMap(width,height,filledMap)
-        #print len(shrinkedMap), len(shrinkedMap[0])
-
-        #newHeight = len(shrinkedMap)
-        #newWidth = len(shrinkedMap[0])
-
-        #expandedMap = expandWalls(newWidth, newHeight, shrinkedMap)
-
-
         xyscale = 1.0/(resolution*scale)
-
-
-        #publishClosedCellsReduce(reducedMap)
         publishClosedCellsReduce(shrinkedMap)
-        #publishClosedCellsShrink(shrinkedMap)
-        #publishClosedCellsShrink(expandedMap)
         ratio = 1.0/(resolution)
         print "Done pub map"
+        
         while ((yEnd == 0) or (xEnd == 0)) and not rospy.is_shutdown():
             pass
-        while not rospy.is_shutdown():
-        # #g = GridMap(width/scale, height/scale,shrinkedMap)
+        while (pathNotDone and not rospy.is_shutdown()):
             g = GridMap(reducedWidth/scale, reducedHeight/scale, shrinkedMap)
-        # #ratio = (resolution*scale)
-        # #print xEnd, yEnd
             aStarReplan(xEnd,yEnd)
-        # print reducedWidth/scale, reducedHeight/scale
-        # endx = int(((-originx - 1/(2*xyscale)+xEnd)*xyscale - x0/scale))
-        # endy = int(((-originy - 1/(2*xyscale)+yEnd)*xyscale - y0/scale))
-        # initx = int(((-originx - 1/(2*xyscale)+xPos)*xyscale - x0/scale))
-        # inity = int(((-originy - 1/(2*xyscale)+yPos)*xyscale - y0/scale))
-        #print endx, endy
-        #print int((xPos)*ratio/scale - originx - x0/scale),int((yPos)*ratio/scale - originy - y0/scale)
-        #g.aStarSearch(initx,inity,endx,endy)
-        #g.printScores()
-        #printTotalPath()
+        print"done"
     except rospy.ROSInterruptException:
         pass
