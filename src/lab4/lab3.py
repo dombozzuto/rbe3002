@@ -587,7 +587,7 @@ def initGridCell():
     global pathVizPub
     global astarVizPub
     #worldMapSub = rospy.Subscriber('/map', OccupancyGrid, readWorldMap)
-    globalCostMapSub = rospy.Subscriber('/move_base/local_costmap/costmap', OccupancyGrid, readGlobalCostMap)
+    globalCostMapSub = rospy.Subscriber('/move_base/global_costmap/costmap', OccupancyGrid, readGlobalCostMap)
     openPub = rospy.Publisher('/cell_path/open', GridCells, queue_size=10)
     closedPub = rospy.Publisher('/cell_path/closed', GridCells, queue_size=10)
     pathVizPub = rospy.Publisher('/cell_path/path', GridCells, queue_size=10)
