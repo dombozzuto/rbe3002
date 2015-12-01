@@ -579,7 +579,7 @@ def readGlobalCostMap(data):
     resolution = data.info.resolution
     originx = data.info.origin.position.x
     originy = data.info.origin.position.y
-    getLocalCostData()
+    #debug# getLocalCostData()
 
 def initGridCell():
     global openPub
