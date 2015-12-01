@@ -17,6 +17,7 @@ from tf.transformations import euler_from_quaternion
 from std_msgs.msg import Empty
 from kobuki_msgs.msg import BumperEvent
 
+
 xInit = 0
 yInit = 0
 thetaInit = 0
@@ -25,8 +26,6 @@ yEnd = 0
 thetaEnd = 0
 totalPath=[]
 aStarList = []
-
-scale = 2
 
 #Kobuki Dimensions
 wheel_rad  = 3.5  #cm
@@ -447,6 +446,7 @@ def aStarReplan(goalx,goaly):
     g.aStarSearch(initx,inity,endx,endy)
     printTotalPath()
     del totalPath[:] 
+    del aStarList[:]
 
 
 def printTotalPath():
@@ -579,6 +579,7 @@ def readGlobalCostMap(data):
     resolution = data.info.resolution
     originx = data.info.origin.position.x
     originy = data.info.origin.position.y
+    getLocalCostData()
 
 def initGridCell():
     global openPub
@@ -586,7 +587,7 @@ def initGridCell():
     global pathVizPub
     global astarVizPub
     #worldMapSub = rospy.Subscriber('/map', OccupancyGrid, readWorldMap)
-    globalCostMapSub = rospy.Subscriber('/move_base/global_costmap/costmap', OccupancyGrid, readGlobalCostMap)
+    globalCostMapSub = rospy.Subscriber('/move_base/local_costmap/costmap', OccupancyGrid, readGlobalCostMap)
     openPub = rospy.Publisher('/cell_path/open', GridCells, queue_size=10)
     closedPub = rospy.Publisher('/cell_path/closed', GridCells, queue_size=10)
     pathVizPub = rospy.Publisher('/cell_path/path', GridCells, queue_size=10)
@@ -599,9 +600,9 @@ def shrinkMap(width, height, mapData2D):
         for y in range(height/scale):
             for j in range(scale):
                 for k in range(scale):
-                    newMap[y][x] = mapData2D[y*scale+k][x*scale+j]
-                    # if(mapData2D[y*scale+k][x*scale+j] > 95):
-                    #     newMap[y][x] = 100
+                    #newMap[y][x] = mapData2D[y*scale+k][x*scale+j]
+                    if(mapData2D[y*scale+k][x*scale+j] > obsThresh):
+                        newMap[y][x] = 100
     return newMap
 
 def expandWalls(width, height, mapData):
@@ -778,7 +779,7 @@ def publishClosedCellsShrink(map2D):
     pointList = []
     for x in range(width/scale):
         for y in range(height/scale):
-            if(map2D[y][x] > 80):
+            if(map2D[y][x] > obsThresh):
                 p = Point()#float(x/xyscale),float(y/xyscale))
                 p.x = float(x/xyscale)+1/(2*xyscale)
                 p.y = float(y/xyscale)+1/(2*xyscale)
@@ -798,8 +799,6 @@ def publishClosedCellsReduce(map2D):
     global y0
     global y1
 
-    costThresh = 98 #when to consider it a wall
-
     gridCells = GridCells()
     gridCells.header.frame_id = "/map"
     gridCells.header.stamp = rospy.Time.now()
@@ -811,7 +810,7 @@ def publishClosedCellsReduce(map2D):
 
     for x in range(reducedWidth/scale):
         for y in range(reducedHeight/scale):
-            if(map2D[y][x] > costThresh):
+            if(map2D[y][x] > obsThresh):
                 p = Point()
                 p.x = float((x+x0/scale)/xyscale)+1/(2*xyscale) + originx
                 p.y = float((y+y0/scale)/xyscale)+1/(2*xyscale) + originy
@@ -869,6 +868,24 @@ def odomCallback(data):
     yPos = y
     theta = math.degrees(yaw)
     #print xPos,yPos,theta
+
+def getLocalCostData():
+    global pose
+    
+    odom_list.waitForTransform('map', 'base_link', rospy.Time(0), rospy.Duration(1.0))
+    (position, orientation) = odom_list.lookupTransform('map','base_link', rospy.Time(0))
+    x=position[0]
+    y=position[1]
+    w = orientation
+    q = [w[0], w[1], w[2], w[3]]
+    roll, pitch, yaw = euler_from_quaternion(q)
+    global xPosLC
+    global yPosLC
+    global thetaLC
+    xPosLC = x
+    yPosLC = y
+    thetaLC = math.degrees(yaw)
+    print " local x: %f" %(xPosLC) + " local y: %f" %(yPosLC) + " local theta: %f" %(thetaLC)
 
 #driveStraight: drives thr robot forward at a desired speed for a certain amount of time
 #param: maxspeed - speed limit, distance - desired travel length
@@ -950,6 +967,7 @@ if __name__ == '__main__':
         print "Setup globals"
         global g
         global pathNotDone
+        global obsThresh
 
         odom_list = tf.TransformListener()
 
@@ -959,11 +977,13 @@ if __name__ == '__main__':
         path = 0
         scale = 4
         pathNotDone = 1
+
+        obsThresh = 99
         # rospy.init_node('lab3')
         sub = rospy.Subscriber('/odom', Odometry, odomCallback)
         pub = rospy.Publisher('/cmd_vel_mux/input/teleop', Twist, queue_size = 5)
         markerSub = rospy.Subscriber('/move_base_simple/goalrbe', PoseStamped, readGoal)
-        pathPub = rospy.Publisher('/path_path', Path)
+        pathPub = rospy.Publisher('/path_path', Path,queue_size = 5)
         initposeSub = rospy.Subscriber('/initialpose', PoseWithCovarianceStamped, readInitPose)
         print "Done sub pub"
         initGridCell()
@@ -982,12 +1002,12 @@ if __name__ == '__main__':
         publishClosedCellsReduce(shrinkedMap)
         ratio = 1.0/(resolution)
         print "Done pub map"
-        
         while ((yEnd == 0) or (xEnd == 0)) and not rospy.is_shutdown():
             pass
         while (pathNotDone and not rospy.is_shutdown()):
             g = GridMap(reducedWidth/scale, reducedHeight/scale, shrinkedMap)
             aStarReplan(xEnd,yEnd)
+            print "current x: %f" %xPos + "current y: %f" %yPos + "goal x: %f" %xEnd + "goal y: %f" %yEnd
         print"done"
     except rospy.ROSInterruptException:
         pass
