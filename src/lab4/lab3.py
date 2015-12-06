@@ -478,73 +478,7 @@ def printTotalPath():
     # PublishGridCellPath(totalPath)
 
 
-# @typ: 0=open 1=closed 2=path
-def publishGridCellPoint(pnt,typ):
-    global resolution
-    global scale
-    gridCells = GridCells()
-    gridCells.header.frame_id = "/map"
-    gridCells.header.stamp = rospy.Time.now()
-    gridCells.cell_width = resolution*scale
-    gridCells.cell_height = resolution*scale
-    xyscale = 1.0/(resolution)
-    p = Point()
-    p.x= float(pnt.x/xyscale)
-    p.y= float(pnt.y/xyscale)
-    gridCells.cells=[p]
-    if(typ==0):
-        openPub.publish(gridCells)
-    if(typ==1):
-        closedPub.publish(gridCells)
-    if(typ==2):
-        pathVizPub.publish(gridCells)
-    if(typ==3):
-        astarVizPub.publish(gridCells)
 
-#publishes a list of Point messages as GridCells
-def publishGridCellList(lst,typ):
-    global resolution
-    global scale
-    gridCells = GridCells()
-    gridCells.header.frame_id = "/map"
-    gridCells.header.stamp = rospy.Time.now()
-    gridCells.cell_width = resolution*scale
-    gridCells.cell_height = resolution*scale
-    xyscale = 1.0/(resolution*scale)
-    
-    pntList=[]
-    for pnt in lst:
-        p = Point()
-        # p.x= float(pnt.x/xyscale)+1/(2*xyscale)
-        # p.y= float(pnt.y/xyscale)+1/(2*xyscale)
-        p.x = float((pnt.x+x0/scale)/xyscale)+1/(2*xyscale) + originx
-        p.y = float((pnt.y+y0/scale)/xyscale)+1/(2*xyscale) + originy
-        p.z=0
-        pntList.append(p)
-
-    gridCells.cells=pntList
-    if(typ==0):
-        openPub.publish(gridCells)
-    if(typ==1):
-        closedPub.publish(gridCells)
-    if(typ==2):
-        pathVizPub.publish(gridCells)
-    if(typ==3):
-        astarVizPub.publish(gridCells)
-
-    # resolution and offset of the map
-
-    # create a new instance of the map
-
-    # generate a path to the start and end goals
-
-    # for each node in the path, process the nodes to generate GridCells and Path messages
-  
-    # transform coordinates for map resolution and offset
-
-    # continue making messages
-
-    # do not stop publishing
 
 #callback for map data
 def readWorldMap(data):

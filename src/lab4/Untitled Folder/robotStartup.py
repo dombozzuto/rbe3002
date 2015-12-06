@@ -2,6 +2,7 @@ import math, numpy, time
 import rospy, roslib, tf
 import tf.transformations
 import nav_msgs.msg, geometry_msgs.msg, std_msgs.msg, kobuki_msgs.msg, actionlib_msgs.msg
+import robotDrive
 #from nav_msgs.msg import GridCells, Path
 #from geometry_msgs.msg import 
 #from nav_msgs.msg import GridCells
@@ -17,8 +18,10 @@ def setupRobot():
 	print "Sleeping for 2 seconds"
 	rospy.sleep(2)
 	print "Trying to rotate"
-	initialRotate(45)
-    
+	robotDrive.rotate(180)
+	robotDrive.rotate(180)
+	robotDrive.rotate(180)
+	robotDrive.rotate(180)
     
 
 def initialRotate(degsToRotate):
@@ -27,16 +30,19 @@ def initialRotate(degsToRotate):
 	global theta
 	print "Current angle is:", theta
 	print "Want to rotate to:", theta + degsToRotate
-	radsToRotate = degsToRotate * math.pi / 180
+	radsToRotate = (degsToRotate + theta) * math.pi / 180.0
 	newPose = geometry_msgs.msg.PoseStamped()
 	newPose.header.frame_id = "/map"
 	newPose.header.stamp = rospy.Time.now()
 	newPose.pose.position.x = xPos
 	newPose.pose.position.y = yPos
-	#newPose.pose.orientation.z = (theta * math.pi / 180) - radsToRotate
-	#newPose.pose.orientation.z = 1
+	newPose.pose.position.z = 0
+	quaternion = tf.transformations.quaternion_from_euler(0,0,radsToRotate)
+	newPose.pose.orientation.x = quaternion[0]
+	newPose.pose.orientation.y = quaternion[1]
+	newPose.pose.orientation.z = quaternion[2]
+	newPose.pose.orientation.w = quaternion[3]
 	navStackPub.publish(newPose)
-	rospy.sleep(1)
 
 #setup the robots publishers
 def setupPublishers():
@@ -46,6 +52,7 @@ def setupPublishers():
 	global astarVizPub
 	global navStackPub
 	global pathPub
+	global odomPub
 
 	#setup all gridCell related publishers
 	openPub = rospy.Publisher('/cell_path/open', nav_msgs.msg.GridCells, queue_size=10)
@@ -58,6 +65,9 @@ def setupPublishers():
 
 	#setup a publisher to the nav stack
 	navStackPub = rospy.Publisher('/move_base_simple/goal', geometry_msgs.msg.PoseStamped, queue_size=10)
+
+	#setup a publisher for Twist messages drive robot
+	odomPub = rospy.Publisher('/cmd_vel_mux/input/teleop', geometry_msgs.msg.Twist, queue_size = 5)
 
 #setup the robot's subsribers
 def setupSubscribers():
@@ -75,7 +85,14 @@ def setupSubscribers():
 #dump anything that isnt a pub/sub to setup here
 def setupMisc():
 	global odom_list
+	global theta
 	odom_list = tf.TransformListener()
+
+def _getTheta():
+	return theta
+
+def _getOdomPub():
+	return odomPub
 
 #####################################################
  #                                                 #
@@ -116,6 +133,10 @@ def odomCallback(data):
     xPos = x
     yPos = y
     theta = math.degrees(yaw)
-
+#goal status callback
 def readBaseStatus(data):
-	print "nothing to see here"
+	#gets status of the navstack
+	global navStackStatus
+	navStackStatus = data.status_list[0].status
+	#print "status length ", len(data.status_list)
+	#print "navStackStatus ", navStackStatus
