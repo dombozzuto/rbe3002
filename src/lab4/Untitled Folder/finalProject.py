@@ -40,58 +40,71 @@ def findFrontiers():
 	xyscale = 1.0/(resolution*1.0)
 	currentNode=Node.Node(x,y,0,width)
 
-	robotStartup.publishGridCellNodes(unknownFrontierNoDist,4)
-	for node in unknownFrontierNoDist:
-		# calculate the distance between the current node and the current
-		# unknown frontier node
-		ppx=float((node.xPos)/xyscale)+1/(2*xyscale) + originy
-		ppy=float((node.yPos)/xyscale)+1/(2*xyscale) + originy
-		tmpnode = Node.Node(ppx,ppy,0,width)
-		dist2Node=d(currentNode,tmpnode)
-		unknownFrontier.append((dist2Node, node))  # append to list
-
-	unknownFrontier.sort(key=lambda tup: tup[0])
-	unknownFrontierNoDist = [(i[1]) for i in unknownFrontier]
-	
-	print "len allnodes", len(allnodes)
-	print "len unknownFrontier", len(unknownFrontier)
-	print "len unknownFrontierNoDist", len(unknownFrontierNoDist)
-
 	#publish GridCells to see on rviz
-	for node in unknownFrontier:
-		print(node[0],node[1].printNode())
-	for node in unknownFrontierNoDist:
-		node.printNode()
+	# for node in unknownFrontier:
+	# 	print(node[0],node[1].printNode())
+	# for node in unknownFrontierNoDist:
+	# 	node.printNode()
 
 	frontierGroup=[]
+	frontierGroup.append([])
+	frontierGroup[0].append(unknownFrontierNoDist[0])
+	print frontierGroup
+
+	if unknownFrontierNoDist[0] in frontierGroup[0]:
+		print "AAAAAA"
+
 	# for each node in the frontier
 	for node in unknownFrontierNoDist:
 		#find all neighbors
 		nodeNeighbors = node.getStraightNeighbors(allnodes)
 		frontierNeigh=[]
 		#for each node in the neighbors of frontier node
-		for n in nodeNeighbors:
-			#if neighbor is in frontier
-			if n in unknownFrontierNoDist:
-				#add to frontier neighbors
-				frontierNeigh.append(n)
-		frontierGroup.append(frontierNeigh)
+		flag=0
+		for neigh in nodeNeighbors:
+			for frontierSection in frontierGroup:
+				if neigh in frontierSection:
+					frontierSection.append(node)
+					flag=1
+		if flag == 0:
+			l=[];l.append(node)
+			frontierGroup.append(l)
 
-	print "\n",len(frontierGroup),len(frontierGroup[0])
 
+	robotStartup.publishGridCellNodes(unknownFrontierNoDist,4)
+	
+
+	print "frontierGroup",len(frontierGroup)
+	# for x in frontierGroup:
+	# 	if len(x) == 0:
+	# 		frontierGroup.remove(x)
+	
 	for x in frontierGroup:
+		print "\n"
 		rospy.sleep(1)
 		robotStartup.publishGridCellNodes(x,3)
-
-	for m in frontierGroup:
-		print "\n",
-		for n in m:
-			n.printNode()
+		for y in x:
+			y.printNode()
+	
 
 
 
 
-	# for node in unknownFrontier:
+	# for node in unknownFrontierNoDist:
+	# 	# calculate the distance between the current node and the current
+	# 	# unknown frontier node
+	# 	ppx=float((node.xPos)/xyscale)+1/(2*xyscale) + originy
+	# 	ppy=float((node.yPos)/xyscale)+1/(2*xyscale) + originy
+	# 	tmpnode = Node.Node(ppx,ppy,0,width)
+	# 	dist2Node=d(currentNode,tmpnode)
+	# 	unknownFrontier.append((dist2Node, node))  # append to list
+
+	# unknownFrontier.sort(key=lambda tup: tup[0])
+	# unknownFrontierNoDist = [(i[1]) for i in unknownFrontier]
+	
+	# # print "len allnodes", len(allnodes)
+	# # print "len unknownFrontier", len(unknownFrontier)
+	# print "len unknownFrontierNoDist", len(unknownFrontierNoDist)
 
 	
 	

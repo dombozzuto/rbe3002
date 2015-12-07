@@ -89,6 +89,42 @@ class Node:
             if temp != None:
                 if not (temp == self) and temp.obs < Node.threshold:
                     neighbors.append(temp)
+        
+        ###############
+        ## diagonals ##
+        ###############
+
+        x = self.xPos-1
+        y = self.yPos-1
+        if (0 <= x and x <= self.width) and (0 <= y and y <= height):
+            temp = self.getNodeFromGrid(x, y, grid)
+            if temp != None:
+                if not (temp == self) and temp.obs < Node.threshold:
+                    neighbors.append(temp)
+
+        x = self.xPos+1
+        y = self.yPos+1
+        if (0 <= x and x <= self.width) and (0 <= y and y <= height):
+            temp = self.getNodeFromGrid(x, y, grid)
+            if temp != None:
+                if not (temp == self) and temp.obs < Node.threshold:
+                    neighbors.append(temp)
+
+        x = self.xPos+1
+        y = self.yPos-1
+        if (0 <= x and x <= self.width) and (0 <= y and y <= height):
+            temp = self.getNodeFromGrid(x, y, grid)
+            if temp != None:
+                if not (temp == self) and temp.obs < Node.threshold:
+                    neighbors.append(temp)
+
+        x = self.xPos-1
+        y = self.yPos+1
+        if (0 <= x and x <= self.width) and (0 <= y and y <= height):
+            temp = self.getNodeFromGrid(x, y, grid)
+            if temp != None:
+                if not (temp == self) and temp.obs < Node.threshold:
+                    neighbors.append(temp)
 
         return neighbors
 
