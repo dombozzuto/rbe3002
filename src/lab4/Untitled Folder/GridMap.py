@@ -2,7 +2,7 @@ from math import sqrt
 from geometry_msgs.msg import Point
 import robotStartup
 
-
+scale = 1.0
 aStarList=[]
 totalPath=[]
 
@@ -65,6 +65,9 @@ class GridMap:
         for y in range(self.height):
             for x in range(self.width):
                 self.map[y][x] = Cell(x,y,-1,-1,-1,data2D[y][x])
+
+    def getTotalPath(self):
+        return totalPath
 
     #update fScore to a given fScore
     def updateFScore(self, xPos, yPos, score):
@@ -290,11 +293,10 @@ class GridMap:
         return len(totalPath)
 
     def printTotalPath(self):
-        global resolution
         global scale
         global pathNotDone
         fscale = float(scale)
-        xyscale = 1/(resolution*scale)
+        xyscale = 1/(robotStartup.resolution*scale)
         pathList = []
         for cell in totalPath:
             print cell.point.x, cell.point.y
@@ -303,13 +305,77 @@ class GridMap:
             p.y=cell.point.y
             p.z=0
             pathList.append(p)    
-        publishGridCellList(pathList,2)
+        robotStartup.publishGridCellList(pathList,2)
         print "Got here Start"
-        wayPointList = getWaypoints(pathList,5)
-        px = float((wayPointList[1].x+x0/scale)/xyscale)+1/(2*xyscale) + originx
-        py = float((wayPointList[1].y+y0/scale)/xyscale)+1/(2*xyscale) + originy
+        wayPointList = self.getWaypoints(pathList,5)
+        px = float((wayPointList[1].x)/xyscale)+1/(2*xyscale) + robotStartup.originx
+        py = float((wayPointList[1].y)/xyscale)+1/(2*xyscale) + robotStartup.originy
         print "wayPoint Length %f" %(len(wayPointList))
-        if (len(wayPointList) > 1):
-            navToPosePoint(px,py)
-        else:
-            pathNotDone = 0               
+        # if (len(wayPointList) > 1):
+        #     navToPosePoint(px,py)
+        # else:
+        #     pathNotDone = 0
+        return wayPointList
+
+    def getWaypoints(self, plist, maxInRow):
+        #setup some starting variables
+        currentDirection = ""
+        numPoints = len(plist)
+        numInRow = 0
+        
+        #exit immediately if were given a list that's too tiny
+        if(numPoints == 1):
+            return pointList
+        if(numPoints == 2):
+            return pointList
+
+        #initial empty list of waypoints
+        wayPoints = []
+        #iterate through the list of points
+        for i in range(1, numPoints):
+            #remember previous direction and compare to current direction
+            #a change in direction immediately indicates the need for a new waypoint
+            lastDirection = currentDirection
+            currentDirection = self.getMovingDirection(plist[i-1], plist[i])
+
+            #if were moving in the same direction, we need to keep track of
+            #how many cells we've moved in this direction
+            #if we've gone to the limit, add a new waypoint
+            print "Got Here 1"
+            if(currentDirection == lastDirection):
+                if(numInRow >= maxInRow):
+                    wayPoints.append(plist[i-1])
+                    numInRow = 0
+                numInRow += 1
+
+            #direction change, add a waypoint
+            else:
+                wayPoints.append(plist[i-1])
+                numInRow = 1
+            print "Got Here 2"
+        #always add the last point in the list.
+        wayPoints.append(plist[numPoints-1])
+        return wayPoints
+
+    #determine the change in direction between 2 points
+    def getMovingDirection(self, lastPoint, currentPoint):
+        #9 distinct possibilities (deltaX, deltaY)
+        #(assuming exactly 1 tile movement)
+        #(0,0 indicates no movement,  should never occur)
+        deltaX = currentPoint.x - lastPoint.x
+        deltaY = currentPoint.y - lastPoint.y
+        #start direction as a blank string
+        direction = ""
+        #take advantage of the fact that vertical direction always comes first
+        if(deltaY == -1): 
+            direction = "S"
+        if(deltaY == 1):
+            direction = "N"
+        #if its diagonal, its added to the end of the existing string
+        #if its pure horizontal movement, it becomes the only char in the string
+        if(deltaX == -1):
+            direction = direction + "W"
+        if(deltaX == 1):
+            direction = direction + "E"
+        #return the direction string
+        return direction

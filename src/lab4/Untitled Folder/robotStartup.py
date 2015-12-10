@@ -111,16 +111,37 @@ def initialRotate(degsToRotate):
 	global theta
 	print "Current angle is:", theta
 	print "Want to rotate to:", theta + degsToRotate
-	radsToRotate = degsToRotate * math.pi / 180
+	radsToRotate = (degsToRotate + theta) * math.pi / 180.0
 	newPose = geometry_msgs.msg.PoseStamped()
 	newPose.header.frame_id = "/map"
 	newPose.header.stamp = rospy.Time.now()
 	newPose.pose.position.x = xPos
 	newPose.pose.position.y = yPos
-	#newPose.pose.orientation.z = (theta * math.pi / 180) - radsToRotate
-	#newPose.pose.orientation.z = 1
+	newPose.pose.position.z = 0
+	quaternion = tf.transformations.quaternion_from_euler(0,0,radsToRotate)
+	newPose.pose.orientation.x = quaternion[0]
+	newPose.pose.orientation.y = quaternion[1]
+	newPose.pose.orientation.z = quaternion[2]
+	newPose.pose.orientation.w = quaternion[3]
 	navStackPub.publish(newPose)
-	rospy.sleep(1)
+
+def goToNode(node,xyscale,originx,originy):
+	global xPos
+	global yPos
+	global theta
+
+	newPose = geometry_msgs.msg.PoseStamped()
+	newPose.header.frame_id = "/map"
+	newPose.header.stamp = rospy.Time.now()
+	newPose.pose.position.x = float(((node.xPos))/xyscale)+1/(2*xyscale) + originx
+	newPose.pose.position.y = float(((node.yPos))/xyscale)+1/(2*xyscale) + originy
+	newPose.pose.position.z = 0
+	quaternion = tf.transformations.quaternion_from_euler(0,0,0)
+	newPose.pose.orientation.x = quaternion[0]
+	newPose.pose.orientation.y = quaternion[1]
+	newPose.pose.orientation.z = quaternion[2]
+	newPose.pose.orientation.w = quaternion[3]
+	navStackPub.publish(newPose)
 
 #setup the robots publishers
 def setupPublishers():
