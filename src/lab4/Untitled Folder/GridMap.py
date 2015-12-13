@@ -213,6 +213,7 @@ class GridMap:
         #initialize open and closed sets to 0
         self.closedSet = []
         self.openSet = []
+        aStarList=[]
 
         # add the start node to the open set
         self.openSet.append(self.map[startY][startX])
@@ -306,7 +307,7 @@ class GridMap:
             p.z=0
             pathList.append(p)    
         robotStartup.publishGridCellList(pathList,2)
-        print "Got here Start"
+        # print "Got here Start"
         wayPointList = self.getWaypoints(pathList,5)
         px = float((wayPointList[1].x)/xyscale)+1/(2*xyscale) + robotStartup.originx
         py = float((wayPointList[1].y)/xyscale)+1/(2*xyscale) + robotStartup.originy
@@ -341,7 +342,7 @@ class GridMap:
             #if were moving in the same direction, we need to keep track of
             #how many cells we've moved in this direction
             #if we've gone to the limit, add a new waypoint
-            print "Got Here 1"
+            # print "Got Here 1"
             if(currentDirection == lastDirection):
                 if(numInRow >= maxInRow):
                     wayPoints.append(plist[i-1])
@@ -352,7 +353,7 @@ class GridMap:
             else:
                 wayPoints.append(plist[i-1])
                 numInRow = 1
-            print "Got Here 2"
+            # print "Got Here 2"
         #always add the last point in the list.
         wayPoints.append(plist[numPoints-1])
         return wayPoints
