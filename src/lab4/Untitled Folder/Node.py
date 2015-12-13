@@ -27,7 +27,7 @@ class Node:
 
     def getNodeFromGrid(self, x, y, grid):
         if x >= 0 and x < self.width and y >= 0 and y < (len(grid)/self.width):
-            return grid[x + y * self.width]
+            return grid[int(x) + int(y * self.width)]
         else:
             return None
 

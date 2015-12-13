@@ -6,6 +6,7 @@ import Node
 
 import RobotMap
 import GridMap
+import robotMapHandler
 #from nav_msgs.msg import GridCells, Path
 #from geometry_msgs.msg import 
 #from nav_msgs.msg import GridCells
@@ -77,6 +78,12 @@ def publishGridCellNodes(lst,typ):
         astarVizPub.publish(gridCells)
     if(typ==4):
     	frontierPub.publish(gridCells)
+    if(typ==5):
+    	offsetCentroidsPub.publish(gridCells)
+    if(typ==6):
+    	goalTilePub.publish(gridCells)
+    if(typ==7):
+    	wallPub.publish(gridCells)
 
 def setupRobot():
 	print "Setting up Misc"
@@ -85,10 +92,10 @@ def setupRobot():
 	setupPublishers()
 	print "Setting up Subscribers"
 	setupSubscribers()
-	print "Sleeping for 2 seconds"
-	rospy.sleep(2)
-	# print "Trying to rotate"
-	# initialRotate(45)
+	print "Sleeping for 10 seconds"
+	rospy.sleep(1)
+	print "Initial Rotate"
+	initialRotate(180)
 
 	startTime = time.time()
 	filledMap = RobotMap.map1Dto2D(width, height, mapData)
@@ -105,7 +112,9 @@ def getGridMap():
 	return gridMap
     
 
+
 def initialRotate(degsToRotate):
+	
 	global xPos
 	global yPos
 	global theta
@@ -124,23 +133,30 @@ def initialRotate(degsToRotate):
 	newPose.pose.orientation.z = quaternion[2]
 	newPose.pose.orientation.w = quaternion[3]
 	navStackPub.publish(newPose)
+	print "Giving time to rotate"
+	rospy.sleep(5)
+	
+
 
 def goToNode(node,xyscale,originx,originy):
 	global xPos
 	global yPos
 	global theta
-
+	print "In goToNode"
 	newPose = geometry_msgs.msg.PoseStamped()
 	newPose.header.frame_id = "/map"
 	newPose.header.stamp = rospy.Time.now()
 	newPose.pose.position.x = float(((node.xPos))/xyscale)+1/(2*xyscale) + originx
 	newPose.pose.position.y = float(((node.yPos))/xyscale)+1/(2*xyscale) + originy
 	newPose.pose.position.z = 0
+	print "about to do a transform"
 	quaternion = tf.transformations.quaternion_from_euler(0,0,0)
+	print "done transforming"
 	newPose.pose.orientation.x = quaternion[0]
 	newPose.pose.orientation.y = quaternion[1]
 	newPose.pose.orientation.z = quaternion[2]
 	newPose.pose.orientation.w = quaternion[3]
+	print "publishing new pose to navstack"
 	navStackPub.publish(newPose)
 
 #setup the robots publishers
@@ -152,6 +168,9 @@ def setupPublishers():
 	global frontierPub
 	global navStackPub
 	global pathPub
+	global offsetCentroidsPub
+	global goalTilePub
+	global wallPub
 
 	#setup all gridCell related publishers
 	openPub = rospy.Publisher('/cell_path/open', nav_msgs.msg.GridCells, queue_size=10)
@@ -159,12 +178,16 @@ def setupPublishers():
 	pathVizPub = rospy.Publisher('/cell_path/path', nav_msgs.msg.GridCells, queue_size=10)
 	astarVizPub = rospy.Publisher('/cell_path/astar', nav_msgs.msg.GridCells, queue_size=10)
 	frontierPub = rospy.Publisher('/cell_path/frontier', nav_msgs.msg.GridCells, queue_size=10)
+	offsetCentroidsPub = rospy.Publisher('/cell_path/offset', nav_msgs.msg.GridCells, queue_size=10)
+	goalTilePub = rospy.Publisher('/cell_path/goalTile', nav_msgs.msg.GridCells, queue_size=10)
+	wallPub = rospy.Publisher('/cell_path/walls', nav_msgs.msg.GridCells, queue_size=10)
+
 
 	#publishes path to RVz for robot path
 	pathPub = rospy.Publisher('/path_path', nav_msgs.msg.Path,queue_size = 5)
 
 	#setup a publisher to the nav stack
-	navStackPub = rospy.Publisher('/move_base_simple/goal', geometry_msgs.msg.PoseStamped, queue_size=10)
+	navStackPub = rospy.Publisher('/move_base_simple/goal', geometry_msgs.msg.PoseStamped, queue_size=5)
 
 #setup the robot's subsribers
 def setupSubscribers():
@@ -173,7 +196,8 @@ def setupSubscribers():
 	baseStatusSub = rospy.Subscriber('/move_base/status', actionlib_msgs.msg.GoalStatusArray, readBaseStatus)
 
 	#read in information from global costmap
-	globalCostMapSub = rospy.Subscriber('/move_base/global_costmap/costmap', nav_msgs.msg.OccupancyGrid, readGlobalCostMap)
+	globalCostMapSub = rospy.Subscriber('/map', nav_msgs.msg.OccupancyGrid, readGlobalCostMap)
+	#globalCostMapSub = rospy.Subscriber('/move_base/global_costmap/costmap', nav_msgs.msg.OccupancyGrid, readGlobalCostMap)
 
 	#subscribe to odometry data
 	odomSub = rospy.Subscriber('/odom', nav_msgs.msg.Odometry, odomCallback)
@@ -201,6 +225,7 @@ def readGlobalCostMap(data):
     global originy
     global map2D
 
+    print "Map Listener got called, updating cost map"
     grid = data
     mapData = data.data
     width = data.info.width
@@ -209,6 +234,8 @@ def readGlobalCostMap(data):
     originx = data.info.origin.position.x
     originy = data.info.origin.position.y
     map2D = RobotMap.map1Dto2D(width, height, mapData)
+    map2D = robotMapHandler.expandWalls(width, height, map2D)
+    map2D = robotMapHandler.expandWalls(width, height, map2D) 
 
 #returns 2D map
 def get2DMap():

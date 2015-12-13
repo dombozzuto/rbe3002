@@ -67,7 +67,6 @@ def expandWalls(width, height, mapData):
             downBoundOK = (y+1<downBound)
             leftBoundOK = (x-1>=leftBound)
             rightBoundOK = (x+1<rightBound)
-            print "X:", x, "Y:", y
             #if there is a wall at this position...
             if(mapData[y][x] == 100):
 
@@ -97,6 +96,7 @@ def expandWalls(width, height, mapData):
             if(mapData[y][x] == 'x'):
                 mapData[y][x] = 100
 
+    print "Done expanding walls"
     return mapData
 
 

@@ -1,6 +1,10 @@
+import rospy
 #AStar search for a path from a start XY to a goal XY
     #returns a list of grid cells on successful completion
     def aStarSearch(self, startX, startY, goalX, goalY):
+
+        startTime = rospy.Time.now()
+        allottedTime = 5.0
         #initialize open and closed sets to 0
         self.closedSet = []
         self.openSet = []
@@ -24,7 +28,7 @@
         self.calculateFScore(startX, startY)
 
         #while openSet is not empty...
-        while(len(self.openSet) != 0):
+        while(len(self.openSet) != 0 and (allottedTime + startTime > rospy.Time.now())):
             #print "Open set length: " ,len(self.openSet)
             #sort the list in order of increase fScore (lowest first)
             self.openSet.sort(key=lambda x: x.fScore)
@@ -77,3 +81,4 @@
                         self.map[neighbor.point.y][neighbor.point.x].cameFrom = currentCell
                         self.updateGScore(neighbor.point.x, neighbor.point.y, tentativeGScore)
                         self.calculateFScore(neighbor.point.x, neighbor.point.y)
+        return False

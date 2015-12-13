@@ -1,4 +1,4 @@
-import math, numpy, time
+import math, numpy, time, random
 import rospy, roslib, tf
 import tf.transformations
 import nav_msgs.msg, geometry_msgs.msg, std_msgs.msg, kobuki_msgs.msg, actionlib_msgs.msg
@@ -102,27 +102,74 @@ def calcCentroid(frontierNodes,width):
 		cnt=cnt+1
 	xc=float(xc/cnt)
 	yc=float(yc/cnt)
-	return(Node.Node(xc,yc,1000,width))
+	return Node.Node(xc,yc,1000,width) 
+	#return Node.Node(xc,yc,1000,width)
 
-	return Node.Node(xc,yc,1000,width)
+def offsetCentroid(centroid, width, height, allnodes):
+	print "Trying to offset centroid:", centroid.xPos,",", centroid.yPos
+	print "Allnodes height:", len(allnodes)
+	#need to BFS from centroid to find the first driveable node
+	nodesToCheck = []
+	checkedNodes = []
+	nodesToCheck.append(centroid)
+	depthLimit = 200
+	while (len(nodesToCheck) > 0) and len(checkedNodes)< depthLimit:
+		currentNode = nodesToCheck.pop(0)
+		checkedNodes.append(currentNode)
+		#this node is driveable! return this
+		#print "CurrentNode.obs is:", currentNode.obs
+		if(currentNode.obs != Node.Node.unknown and currentNode.obs != 1000 and currentNode.obs < Node.Node.threshold):
+			#print "Found a valid node! It is:"
+			#print "\t", currentNode.xPos, currentNode.yPos
+			return currentNode
+		#this node wasn't able to be driven to; add its neighbors to be checked
+		else:
+			neighbors = currentNode.getStraightNeighbors(allnodes)
+			for n in neighbors:
+				#make sure the node isnt already in the queue and hasnt been
+				#checked already
+				if((n not in nodesToCheck) and (n not in checkedNodes)):
+					nodesToCheck.append(n)
+
+	print "Node could not be offset, moving on"
+	return None
+
+
+
+
+
+
+
 if __name__ == '__main__':
-	
 	rospy.init_node('finalProject', anonymous=True)
 	try:
 
 		print "Starting"
-
-		
-
 		rospy.sleep(1)
 		robotStartup.setupRobot()
 		while not rospy.is_shutdown():
+			print "starting the loop again"
+			
 			[allnodes, width, height, resolution, originx, originy]=  robotStartup.getNodeMap()
 			global xyscale
 			xyscale = 1.0/(resolution*1.0)
 			#find frontiers and get centroids
 			[frontiers, centroids] = findFrontiers(allnodes, width, height, resolution, originx, originy)
-			print frontiers, centroids
+			
+			print len(frontiers), "frontiers have been found."
+			print len(centroids), "centroids have been calculated."
+			print "The centroids are:"
+			for cent in centroids:
+				print(("\t%d,%d") % (int(cent.xPos), int(cent.yPos)))
+
+			walls = []
+			print "looking for walls"
+			for node in allnodes:
+				if(node.obs > Node.Node.threshold):
+					walls.append(node)
+			print "done looking for walls"
+
+			robotStartup.publishGridCellNodes(walls, 7)
 
 			[x,y,w]=robotStartup.getPose()
 
@@ -130,15 +177,66 @@ if __name__ == '__main__':
 			curry = int((y-originy-(1/(2*xyscale)))*xyscale)
 			# float( ((node.xPos))/xyscale) +1/(2*xyscale) + originx
 			print currx, centroids[0].xPos
-			robotStartup.gridMap.aStarSearch(currx,curry,int(centroids[0].xPos),int(centroids[0].yPos))
-			
-			wypnts = robotStartup.gridMap.printTotalPath()
-			print wypnts[0],wypnts[1],wypnts[2]
-			mynode = Node.Node(wypnts[(len(wypnts)/2)].x,wypnts[0].y,0,width)
 
+			robotStartup.publishGridCellNodes(centroids,1)
+			'''
 			robotStartup.publishGridCellList(wypnts,4)
-			robotStartup.goToNode(mynode,xyscale,originx,originy)
+			'''
+			offsetCentroids = []
+			for c in centroids:
+				newCentroid = offsetCentroid(c, width, height, allnodes)
+				if(newCentroid != None):
+					offsetCentroids.append(newCentroid)
+			#print("Original:\t\tOffset:")
+#			for i in range(len(centroids)):
+#				print("[%d,%d]\t\t[%d,%d]" % (centroids[i].xPos, centroids[i].yPos, offsetCentroids[i].xPos, offsetCentroids[i].yPos))
+			#remove centroids too close to the current one
+			
+			listLength = len(offsetCentroids)
+			for c in offsetCentroids:
+				if(d(c, Node.Node(currx, curry, 0, width)) < 10):
+					#print "Trying to remove a node, first loop"
+					offsetCentroids.remove(c)
+			newListLength = len(offsetCentroids)
+			#print listLength-newListLength, "centroids removed."
 
+			for c in offsetCentroids:
+				neighbors = c.getStraightNeighbors(allnodes)
+				for n in neighbors:
+					if(n.obs > Node.Node.threshold):
+						#print "Trying to remove a node, second loop"
+						offsetCentroids.remove(c)
+						break
+			newNewListLength = len(offsetCentroids)
+
+			#print newListLength-newNewListLength, "more centroids removed"
+
+			'''
+			#find a valid centroid
+			for c in offsetCentroids:
+				print "Trying a new centroid"
+				success = robotStartup.gridMap.aStarSearch(currx,curry,int(c.xPos),int(c.yPos))
+				if(success != False):
+					print "Found a successful path"
+					break
+				else:
+					print "Trying again..."
+				print "Done with AStar"
+				#robotStartup.gridMap.aStarSearch(currx,curry,int(centroids[len(centroids)-1].xPos),int(centroids[len(centroids)-1].yPos))
+			wypnts = robotStartup.gridMap.printTotalPath()
+			mynode = Node.Node(wypnts[(len(wypnts)/2)].x,wypnts[(len(wypnts)/2)].y,0,width)
+
+			'''
+
+
+			robotStartup.publishGridCellNodes(offsetCentroids, 5)
+			print "Going to Node"
+			mynode = random.sample(offsetCentroids, 1)[0]
+			robotStartup.publishGridCellNodes([mynode],6)
+			robotStartup.goToNode(mynode,xyscale,originx,originy)
+			rospy.sleep(15)
+			#robotStartup.goToNode(mynode,xyscale,originx,originy)
+			
 
 
 	except rospy.ROSInterruptException:
