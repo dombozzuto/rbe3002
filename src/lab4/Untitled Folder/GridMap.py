@@ -1,6 +1,6 @@
 from math import sqrt
 from geometry_msgs.msg import Point
-import robotStartup
+import robotStartup, Cell
 
 scale = 1.0
 aStarList=[]

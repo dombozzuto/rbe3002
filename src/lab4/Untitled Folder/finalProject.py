@@ -5,6 +5,7 @@ import nav_msgs.msg, geometry_msgs.msg, std_msgs.msg, kobuki_msgs.msg, actionlib
 import robotStartup
 import Node
 import GridMap
+import subprocess
 
 
 
@@ -28,7 +29,7 @@ def findFrontiers(allnodes,width,height,resolution,originx,originy):
 			nodeNeighbors = node.getStraightNeighbors(allnodes)
 			frontierFlag = 0
 			for neigh in nodeNeighbors:
-				if (neigh.obs > -1) and (neigh.obs < 30):
+				if (neigh.obs > -1) and (neigh.obs < 25):
 					frontierFlag = 1
 			if frontierFlag == 1:
 				unknownFrontierNoDist.append(node)
@@ -37,19 +38,13 @@ def findFrontiers(allnodes,width,height,resolution,originx,originy):
 	xyscale = 1.0/(resolution*1.0)
 	currentNode=Node.Node(x,y,0,width)
 
-	#publish GridCells to see on rviz
-	# for node in unknownFrontier:
-	# 	print(node[0],node[1].printNode())
-	# for node in unknownFrontierNoDist:
-	# 	node.printNode()
-
 	frontierGroup=[]
 	frontierGroup.append([])
-	# frontierGroup[0].append(unknownFrontierNoDist[0])
-	# print frontierGroup
+
 
 	# for each node in the frontier
 	for node in unknownFrontierNoDist:
+		leng=0
 		#find all neighbors
 		nodeNeighbors = node.getStraightNeighbors(allnodes)
 		frontierNeigh=[]
@@ -59,21 +54,41 @@ def findFrontiers(allnodes,width,height,resolution,originx,originy):
 			for frontierSection in frontierGroup:
 				if neigh in frontierSection:
 					if flag == 0:
+						leng=leng+1
 						frontierSection.append(node)
 						flag=1
 		if flag == 0:
 			l=[];l.append(node)
 			frontierGroup.append(l)
+	print len(frontierGroup)
 
+	#Minimum Frontier Size
+	for frontierSection in frontierGroup:
+		print len(frontierSection)
+		if len(frontierSection)<10:
+			frontierGroup.remove(frontierSection)
+	print len(frontierGroup)
+	for frontierSection in frontierGroup:
+		print len(frontierSection)
+		if len(frontierSection)<10:
+			frontierGroup.remove(frontierSection)
+	print len(frontierGroup)
 
-	robotStartup.publishGridCellNodes(unknownFrontierNoDist,4)
+	#Display on Rviz removed frontiers
+	lst=[]
+	for m in frontierGroup:
+		for n in m:
+			lst.append(n)
+	unknownFrontierNoDist=lst[:]
+
+	robotStartup.publishGridCellNodes(lst,4)
 	
 	#make a list of centroids
 	centroids = []
 	for x in frontierGroup:
 		if len(x)!=0:
 			centroids.append(calcCentroid(x,width))
-	robotStartup.publishGridCellNodes(centroids,3)
+	robotStartup.publishGridCellNodes(centroids,5)
 
 	centroidsdist=[]
 	[x,y,w]=robotStartup.getPose()
@@ -88,7 +103,7 @@ def findFrontiers(allnodes,width,height,resolution,originx,originy):
 	centroidsdist.sort(key=lambda tup: tup[0])
 	centroids = [(i[1]) for i in centroidsdist]
 
-	return [unknownFrontier,centroids]
+	return [lst,centroids]
 		
 	# g=robotStartup.getGridMap()
 	# g.GridMap.astarSearch(g,0,0,4,4)
@@ -137,17 +152,17 @@ def offsetCentroid(centroid, width, height, allnodes):
 
 
 
-
-
-
 if __name__ == '__main__':
 	rospy.init_node('finalProject', anonymous=True)
 	try:
-
+		done=1
 		print "Starting"
 		rospy.sleep(1)
 		robotStartup.setupRobot()
-		while not rospy.is_shutdown():
+
+		attemptedCentroids = []
+
+		while not rospy.is_shutdown() and done>0:
 			print "starting the loop again"
 			
 			[allnodes, width, height, resolution, originx, originy]=  robotStartup.getNodeMap()
@@ -155,7 +170,9 @@ if __name__ == '__main__':
 			xyscale = 1.0/(resolution*1.0)
 			#find frontiers and get centroids
 			[frontiers, centroids] = findFrontiers(allnodes, width, height, resolution, originx, originy)
-			
+			if len(centroids)<1:
+				done=len(centroids)
+				break
 			print len(frontiers), "frontiers have been found."
 			print len(centroids), "centroids have been calculated."
 			print "The centroids are:"
@@ -175,8 +192,6 @@ if __name__ == '__main__':
 
 			currx = int((x-originx-(1/(2*xyscale)))*xyscale)
 			curry = int((y-originy-(1/(2*xyscale)))*xyscale)
-			# float( ((node.xPos))/xyscale) +1/(2*xyscale) + originx
-			print currx, centroids[0].xPos
 
 			robotStartup.publishGridCellNodes(centroids,1)
 			'''
@@ -232,12 +247,29 @@ if __name__ == '__main__':
 			robotStartup.publishGridCellNodes(offsetCentroids, 5)
 			print "Going to Node"
 			mynode = random.sample(offsetCentroids, 1)[0]
+			attemptedCentroids.append(mynode)
+			#if we've tried the same centroid 3 times, break the program
+			
+			centroidCount = 0
+			for a in attemptedCentroids:
+				if mynode == a:
+					centroidCount += 1
+			print "We've tried this centroid", centroidCount, "times."
+			if(centroidCount > 3 or len(attemptedCentroids) > 20):
+				print "Too many times...Exiting..."
+				break
+
+
 			robotStartup.publishGridCellNodes([mynode],6)
 			robotStartup.goToNode(mynode,xyscale,originx,originy)
 			rospy.sleep(15)
 			#robotStartup.goToNode(mynode,xyscale,originx,originy)
 			
-
+		# print "WE DID IT WE DID IT WE DID IT HOORAY!"
+		# print len(centroids)
 
 	except rospy.ROSInterruptException:
 		pass
+	print "WE DID IT WE DID IT WE DID IT HOORAY!"
+	print len(centroids)
+	subprocess.call(["aplay ~/Desktop/doramap.wav"],shell=True)

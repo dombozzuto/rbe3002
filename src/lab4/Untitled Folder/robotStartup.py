@@ -7,6 +7,8 @@ import Node
 import RobotMap
 import GridMap
 import robotMapHandler
+
+import subprocess
 #from nav_msgs.msg import GridCells, Path
 #from geometry_msgs.msg import 
 #from nav_msgs.msg import GridCells
@@ -86,25 +88,24 @@ def publishGridCellNodes(lst,typ):
     	wallPub.publish(gridCells)
 
 def setupRobot():
-	print "Setting up Misc"
-	setupMisc()
-	print "Setting up Publishers"
-	setupPublishers()
-	print "Setting up Subscribers"
-	setupSubscribers()
-	print "Sleeping for 10 seconds"
-	rospy.sleep(1)
-	print "Initial Rotate"
-	initialRotate(180)
+    print "Setting up Misc"
+    setupMisc()
+    print "Setting up Publishers"
+    setupPublishers()
+    print "Setting up Subscribers"
+    setupSubscribers()
+    print "Sleeping for 10 seconds"
+    rospy.sleep(1)
+    print "Initial Rotate"
+    initialRotate(180)
+    startTime = time.time()
+    filledMap = RobotMap.map1Dto2D(width, height, mapData)
+    shrinkedMap = RobotMap.shrinkMap(width, height,filledMap)
+    doneTime = time.time()	
 
-	startTime = time.time()
-	filledMap = RobotMap.map1Dto2D(width, height, mapData)
-	shrinkedMap = RobotMap.shrinkMap(width, height,filledMap)
-	doneTime = time.time()	
-
-	global gridMap
-	gridMap = GridMap.GridMap(width, height, shrinkedMap)
-	# gridMap.aStarSearch(0,0,4,4)
+    global gridMap
+    gridMap = GridMap.GridMap(width, height, shrinkedMap)
+    # gridMap.aStarSearch(0,0,4,4)
 
 
 
